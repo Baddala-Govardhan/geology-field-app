@@ -1,0 +1,63 @@
+# version: '3.8'
+
+# services:
+#   couchdb:
+#     image: couchdb:latest
+#     container_name: couchdb
+#     ports:
+#       - "5984:5984"
+#     environment:
+#       COUCHDB_USER: app
+#       COUCHDB_PASSWORD: app
+#     volumes:
+#       - couchdb_data:/opt/couchdb/data
+
+#   frontend:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     container_name: geology_frontend
+#     ports:
+#       - "3000:80"
+#     depends_on:
+#       - couchdb
+
+# volumes:
+#   couchdb_data:
+
+version: "3.9"
+
+services:
+  couchdb:
+    image: couchdb:latest
+    container_name: couchdb
+    restart: always
+    environment:
+      - COUCHDB_USER=app
+      - COUCHDB_PASSWORD=app
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+      - ./couchdb-init.sh:/docker-entrypoint-initdb.d/couchdb-init.sh:ro
+    command: >
+      bash -c "
+        echo '[couchdb]\nsingle_node=true\n' > /opt/couchdb/etc/local.d/docker.ini &&
+        echo '[chttpd]\nrequire_valid_user = true\n' >> /opt/couchdb/etc/local.d/docker.ini &&
+        echo '[cors]\nenabled = true\n' >> /opt/couchdb/etc/local.d/docker.ini &&
+        echo '[cors]\norigins = *\nmethods = GET, PUT, POST, DELETE, OPTIONS\nheaders = accept, authorization, content-type, origin, referer\n' >> /opt/couchdb/etc/local.d/docker.ini &&
+        /docker-entrypoint.sh /opt/couchdb/bin/couchdb
+      "
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: geology_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - couchdb
+
+volumes:
+  couchdb_data:

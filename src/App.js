@@ -1,275 +1,248 @@
-// import React, { useState } from "react";
-// import PouchDB from "pouchdb";
-
-// const db = new PouchDB("geology_field_data");
-// const remoteDB = new PouchDB("http://app:app@localhost:5984/geology-data");
-
-// db.sync(remoteDB, {
-//   live: true,
-//   retry: true,
-// })
-//   .on("change", (info) => console.log("Sync change:", info))
-//   .on("paused", () => console.log("Sync paused"))
-//   .on("active", () => console.log("Sync active"))
-//   .on("error", (err) => console.error("Sync error:", err));
+// import React from "react";
+// import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+// import GrainForm from "./GrainForm";
+// import FlowForm from "./FlowForm"; // Create this later
 
 // function App() {
-//   const [formData, setFormData] = useState({
-//     grainSize: "",
-//     sedimentType: "",
-//     gpsLocation: "",
-//     notes: "",
-//   });
-
-//   const handleChange = (e) => {
-//     setFormData({ ...formData, [e.target.name]: e.target.value });
-//   };
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-
-//     const doc = {
-//       _id: new Date().toISOString(),
-//       ...formData,
-//     };
-
-//     try {
-//       await db.put(doc);
-//       alert("Data saved locally");
-//       setFormData({ grainSize: "", sedimentType: "", gpsLocation: "", notes: "" });
-//     } catch (err) {
-//       console.error("Error saving to PouchDB", err);
-//     }
-//   };
-
 //   return (
-//     <div style={containerStyle}>
-//       <h2 style={titleStyle}>Geology Field Data Entry</h2>
-//       <form onSubmit={handleSubmit}>
-//         <label style={labelStyle}>Grain Size</label>
-//         <input
-//           name="grainSize"
-//           value={formData.grainSize}
-//           onChange={handleChange}
-//           placeholder="e.g., fine, medium"
-//           style={inputStyle}
-//         />
-
-//         <label style={labelStyle}>Sediment Type</label>
-//         <input
-//           name="sedimentType"
-//           value={formData.sedimentType}
-//           onChange={handleChange}
-//           placeholder="e.g., sandstone"
-//           style={inputStyle}
-//         />
-
-//         <label style={labelStyle}>GPS Location</label>
-//         <input
-//           name="gpsLocation"
-//           value={formData.gpsLocation}
-//           onChange={handleChange}
-//           placeholder="latitude, longitude"
-//           style={inputStyle}
-//         />
-
-//         <label style={labelStyle}>Notes</label>
-//         <textarea
-//           name="notes"
-//           value={formData.notes}
-//           onChange={handleChange}
-//           placeholder="Additional observations"
-//           style={{ ...inputStyle, height: "100px" }}
-//         />
-
-//         <button type="submit" style={buttonStyle}>
-//           Save
-//         </button>
-//       </form>
-//     </div>
+//     <Router>
+//       <div style={{ padding: "20px" }}>
+//         <h2>Geology Field Data App</h2>
+//         <nav style={{ marginBottom: "20px" }}>
+//           <Link to="/grain" style={{ marginRight: "15px" }}>Grain Size Form</Link>
+//           <Link to="/flow">Flow Measurement Form</Link>
+//         </nav>
+//         <Routes>
+//           <Route path="/grain" element={<GrainForm />} />
+//           <Route path="/flow" element={<FlowForm />} />
+//         </Routes>
+//       </div>
+//     </Router>
 //   );
 // }
-
-// const containerStyle = {
-//   maxWidth: "500px",
-//   margin: "40px auto",
-//   padding: "20px",
-//   border: "1px solid #ddd",
-//   borderRadius: "8px",
-//   backgroundColor: "#f9f9f9",
-//   fontFamily: "Arial, sans-serif",
-// };
-
-// const titleStyle = {
-//   textAlign: "center",
-//   color: "#2c3e50",
-// };
-
-// const labelStyle = {
-//   display: "block",
-//   marginTop: "15px",
-//   marginBottom: "5px",
-//   fontWeight: "bold",
-//   color: "#34495e",
-// };
-
-// const inputStyle = {
-//   width: "100%",
-//   padding: "10px",
-//   border: "1px solid #ccc",
-//   borderRadius: "4px",
-//   boxSizing: "border-box",
-// };
-
-// const buttonStyle = {
-//   marginTop: "20px",
-//   width: "100%",
-//   padding: "12px",
-//   backgroundColor: "#3498db",
-//   color: "white",
-//   border: "none",
-//   borderRadius: "4px",
-//   fontWeight: "bold",
-//   cursor: "pointer",
-// };
 
 // export default App;
 
 
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Contact from "./pages/Contact";
+import GrainForm from "./GrainForm";
+import FlowForm from "./FlowForm";
 
+function Navigation() {
+  const location = useLocation();
+  const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
+  const isHomePage = location.pathname === "/";
+  
+  if (isAuthPage) {
+    return null; // Hide navigation on login/signup pages
+  }
 
-import React, { useState } from "react";
-import PouchDB from "pouchdb";
-
-const db = new PouchDB("geology_field_data");
-const remoteDB = new PouchDB("http://app:app@localhost:5984/geology-data");
-
-db.sync(remoteDB, {
-  live: true,
-  retry: true,
-})
-  .on("change", (info) => console.log("Sync change:", info))
-  .on("paused", () => console.log("Sync paused"))
-  .on("active", () => console.log("Sync active"))
-  .on("error", (err) => console.error("Sync error:", err));
-
-function App() {
-  const [formData, setFormData] = useState({
-    grainSize: "",
-    sedimentType: "",
-    gpsLocation: "",
-    notes: "",
-  });
-
-  const [file, setFile] = useState(null);
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-  };
-
-  const handleSubmit = async (e) => {
+  const handleScrollClick = (e, sectionId) => {
     e.preventDefault();
-    const _id = new Date().toISOString();
-
-    try {
-      const doc = {
-        _id,
-        ...formData,
-      };
-
-      await db.put(doc);
-
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          const result = reader.result;
-          const contentType = file.type || "application/octet-stream";
-
-          await db.putAttachment(_id, file.name, doc._rev, result, contentType);
-        };
-        reader.readAsArrayBuffer(file);
+    if (isHomePage) {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        window.history.pushState(null, "", `#${sectionId}`);
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-
-      alert("Data saved locally");
-      setFormData({ grainSize: "", sedimentType: "", gpsLocation: "", notes: "" });
-      setFile(null);
-    } catch (err) {
-      console.error("Error saving to PouchDB", err);
+    } else {
+      // If not on home page, navigate to home first, then scroll
+      window.location.href = `/#${sectionId}`;
     }
   };
-
+  
   return (
-    <div style={containerStyle}>
-      <h2 style={titleStyle}>Geology Field Data Entry</h2>
-      <form onSubmit={handleSubmit}>
-        <label style={labelStyle}>Grain Size</label>
-        <input name="grainSize" value={formData.grainSize} onChange={handleChange} style={inputStyle} />
+    <nav style={navStyle}>
+      <div style={navContainerStyle}>
+        <div style={navLinksWrapper}>
+          <a 
+            href="#home"
+            onClick={(e) => handleScrollClick(e, "home")}
+            style={{
+              ...navLinkStyle,
+              ...(isHomePage && (location.hash === "" || location.hash === "#home") ? activeNavLinkStyle : {})
+            }}
+          >
+            Home
+          </a>
+          <a 
+            href="#features"
+            onClick={(e) => handleScrollClick(e, "features")}
+            style={{
+              ...navLinkStyle,
+              ...(isHomePage && location.hash === "#features" ? activeNavLinkStyle : {})
+            }}
+          >
+            Features
+          </a>
+          <a 
+            href="#contact"
+            onClick={(e) => handleScrollClick(e, "contact")}
+            style={{
+              ...navLinkStyle,
+              ...(isHomePage && location.hash === "#contact" ? activeNavLinkStyle : {})
+            }}
+          >
+            Contact
+          </a>
+        </div>
+      </div>
+    </nav>
+  );
+}
 
-        <label style={labelStyle}>Sediment Type</label>
-        <input name="sedimentType" value={formData.sedimentType} onChange={handleChange} style={inputStyle} />
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
+  );
+}
 
-        <label style={labelStyle}>GPS Location</label>
-        <input name="gpsLocation" value={formData.gpsLocation} onChange={handleChange} style={inputStyle} />
-
-        <label style={labelStyle}>Notes</label>
-        <textarea name="notes" value={formData.notes} onChange={handleChange} style={{ ...inputStyle, height: "80px" }} />
-
-        <label style={labelStyle}>Upload File</label>
-        <input type="file" onChange={handleFileChange} style={inputStyle} />
-
-        <button type="submit" style={buttonStyle}>Save</button>
-      </form>
+function AppContent() {
+  const location = useLocation();
+  const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
+  
+  // Handle scroll to section on page load if hash is present
+  React.useEffect(() => {
+    if (location.pathname === "/" && location.hash) {
+      const sectionId = location.hash.substring(1);
+      setTimeout(() => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  }, [location.pathname, location.hash]);
+  
+  return (
+    <div style={appContainerStyle}>
+      {!isAuthPage && (
+        <header style={headerStyle}>
+          <div style={headerContentStyle}>
+            <h1 style={titleStyle}>Geology Field Data</h1>
+            <p style={subtitleStyle}>Field research data collection system</p>
+          </div>
+        </header>
+      )}
+      
+      <Navigation />
+      
+      <main style={mainStyle}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/contact-form" element={<Contact />} />
+          <Route path="/grain" element={<GrainForm />} />
+          <Route path="/flow" element={<FlowForm />} />
+        </Routes>
+      </main>
     </div>
   );
 }
 
-const containerStyle = {
-  maxWidth: "500px",
-  margin: "40px auto",
-  padding: "20px",
-  border: "1px solid #ddd",
-  borderRadius: "8px",
-  backgroundColor: "#f9f9f9",
-  fontFamily: "Arial, sans-serif",
-};
-
-const titleStyle = {
-  textAlign: "center",
+const appContainerStyle = {
+  minHeight: "100vh",
+  background: "#ffffff",
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif",
+  padding: "0",
+  margin: "0",
   color: "#2c3e50",
 };
 
-const labelStyle = {
-  display: "block",
-  marginTop: "15px",
-  marginBottom: "5px",
-  fontWeight: "bold",
-  color: "#34495e",
+const headerStyle = {
+  background: "#ffffff",
+  padding: "2.5rem 2rem 2rem 2rem",
+  textAlign: "center",
+  position: "relative",
+  borderBottom: "2px solid #8b6f47",
+  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
 };
 
-const inputStyle = {
-  width: "100%",
-  padding: "10px",
-  border: "1px solid #ccc",
-  borderRadius: "4px",
-  boxSizing: "border-box",
+const headerContentStyle = {
+  maxWidth: "1200px",
+  margin: "0 auto",
 };
 
-const buttonStyle = {
-  marginTop: "20px",
-  width: "100%",
-  padding: "12px",
-  backgroundColor: "#3498db",
-  color: "white",
-  border: "none",
-  borderRadius: "4px",
-  fontWeight: "bold",
+const titleStyle = {
+  margin: "0 0 0.5rem 0",
+  fontSize: "clamp(2rem, 4vw, 2.75rem)",
+  fontWeight: "600",
+  color: "#2c3e50",
+  letterSpacing: "-0.02em",
+  lineHeight: "1.2",
+  fontFamily: "'Georgia', 'Times New Roman', serif",
+};
+
+const subtitleStyle = {
+  margin: "0",
+  color: "#6c757d",
+  fontSize: "clamp(0.875rem, 1.25vw, 1rem)",
+  fontWeight: "400",
+  letterSpacing: "0",
+};
+
+const navStyle = {
+  background: "#ffffff",
+  borderBottom: "1px solid #dee2e6",
+  padding: "0",
+  position: "sticky",
+  top: "0",
+  zIndex: "100",
+  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.03)",
+};
+
+const navContainerStyle = {
+  maxWidth: "1200px",
+  margin: "0 auto",
+  padding: "0 2rem",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+};
+
+const navLinksWrapper = {
+  display: "flex",
+  gap: "0",
+  justifyContent: "center",
+};
+
+const navLinkStyle = {
+  display: "inline-block",
+  padding: "1.25rem 2rem",
+  textDecoration: "none",
+  color: "#6c757d",
+  fontWeight: "500",
+  fontSize: "0.9375rem",
+  letterSpacing: "0",
+  borderBottom: "2px solid transparent",
+  transition: "all 0.2s ease",
   cursor: "pointer",
+  position: "relative",
 };
+
+const activeNavLinkStyle = {
+  color: "#8b6f47",
+  borderBottomColor: "#8b6f47",
+  fontWeight: "600",
+};
+
+const mainStyle = {
+  maxWidth: "1200px",
+  margin: "0 auto",
+  padding: "0",
+  minHeight: "calc(100vh - 300px)",
+};
+
+
+// Add hover effect via inline style on component
 
 export default App;
-
-

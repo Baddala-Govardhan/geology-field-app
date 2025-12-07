@@ -1,0 +1,202 @@
+/* Global Styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #ffffff;
+  color: #1a1a1a;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(229, 9, 20, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(229, 9, 20, 0.8);
+  }
+}
+
+
+/* Form Input Focus Styles */
+select:focus,
+input:focus {
+  outline: none;
+  border-color: #8b6f47 !important;
+  box-shadow: 0 0 0 3px rgba(139, 111, 71, 0.1) !important;
+  background: #ffffff !important;
+}
+
+/* Button Hover Effects */
+button[type="submit"]:hover,
+a[style*="background: #8b6f47"]:hover {
+  background: #7a5f3d !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+button[type="submit"]:active,
+a[style*="background: #8b6f47"]:active {
+  background: #6b4f35 !important;
+  transform: translateY(0);
+}
+
+button[type="button"]:hover {
+  background: #f9fafb !important;
+  border-color: #d1d5db !important;
+}
+
+a[style*="border: \"2px solid #111827\""]:hover,
+a[style*="border: \"1.5px solid #000000\""]:hover {
+  background: #111827 !important;
+  color: #ffffff !important;
+}
+
+/* Link Hover Effects */
+a:hover {
+  opacity: 0.8;
+}
+
+/* Navigation Link Hover */
+nav a:hover {
+  color: #111827 !important;
+  border-bottom-color: rgba(17, 24, 39, 0.3) !important;
+}
+
+/* Feature Card Hover */
+div[style*="featureCardStyle"]:hover {
+  transform: translateY(-4px);
+  border-color: #d1d5db !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+  background: #ffffff !important;
+}
+
+/* Staggered Animation Delays */
+div[style*="animationDelay: \"0.1s\""] {
+  animation-delay: 0.1s;
+}
+
+div[style*="animationDelay: \"0.2s\""] {
+  animation-delay: 0.2s;
+}
+
+div[style*="animationDelay: \"0.3s\""] {
+  animation-delay: 0.3s;
+}
+
+div[style*="animationDelay: \"0.4s\""] {
+  animation-delay: 0.4s;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Smooth Transitions */
+* {
+  transition: all 0.3s ease;
+}
+
