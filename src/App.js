@@ -45,13 +45,15 @@ function Navigation() {
   const handleScrollClick = (e, sectionId) => {
     e.preventDefault();
     const basename = process.env.PUBLIC_URL || '/geology-field-app';
-    const currentPath = window.location.pathname;
     
     if (isHomePage) {
       const element = document.getElementById(sectionId);
       if (element) {
-        // Use hash only, preserve current path
-        const newUrl = currentPath + `#${sectionId}`;
+        // Ensure we stay in the geology app path
+        const currentPath = window.location.pathname;
+        // Make sure path includes basename
+        const basePath = currentPath.startsWith(basename) ? currentPath : basename;
+        const newUrl = basePath + `#${sectionId}`;
         window.history.pushState(null, "", newUrl);
         element.scrollIntoView({ behavior: "smooth", block: "start" });
       }
@@ -66,7 +68,7 @@ function Navigation() {
       <div style={navContainerStyle}>
         <div style={navLinksWrapper}>
           <a 
-            href="/geology-field-app/#home"
+            href="#home"
             onClick={(e) => handleScrollClick(e, "home")}
             style={{
               ...navLinkStyle,
@@ -76,7 +78,7 @@ function Navigation() {
             Home
           </a>
           <a 
-            href="/geology-field-app/#features"
+            href="#features"
             onClick={(e) => handleScrollClick(e, "features")}
             style={{
               ...navLinkStyle,
@@ -86,7 +88,7 @@ function Navigation() {
             Features
           </a>
           <a 
-            href="/geology-field-app/#contact"
+            href="#contact"
             onClick={(e) => handleScrollClick(e, "contact")}
             style={{
               ...navLinkStyle,
