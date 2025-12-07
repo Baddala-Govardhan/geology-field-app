@@ -105,7 +105,18 @@ function Navigation() {
 
 function App() {
   // Set basename for GitHub Pages deployment
-  const basename = process.env.PUBLIC_URL || '/geology-field-app';
+  // Check if we're on GitHub Pages (has /geology-field-app in path)
+  const getBasename = () => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path.startsWith('/geology-field-app')) {
+        return '/geology-field-app';
+      }
+    }
+    return process.env.PUBLIC_URL || '/geology-field-app';
+  };
+  
+  const basename = getBasename();
   
   return (
     <Router basename={basename}>
