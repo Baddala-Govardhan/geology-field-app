@@ -40,6 +40,19 @@ docker run -d -p 3000:80 geology-field-app
 
 Frontend app URL: http://localhost:3000
 
+## 🚀 GitHub Pages Deployment
+
+The app is automatically deployed to GitHub Pages using GitHub Actions.
+
+**Live Site**: https://baddala-govardhan.github.io/geology-field-app
+
+### How it works:
+1. Push code to the `main` branch
+2. GitHub Actions automatically builds and deploys the app
+3. The site is available at the URL above
+
+**Note**: CouchDB functionality requires a backend server. For full functionality with data storage, use the Docker setup locally.
+
 ## Screenshots
 
 <img width="2940" height="1764" alt="Home Page" src="https://github.com/user-attachments/assets/7d19252b-cb09-41bf-9b4a-3058de5ecb4e" />
