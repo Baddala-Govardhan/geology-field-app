@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/geology-field-app/static/css/main.8b2e9b36.css",
+    "main.js": "/geology-field-app/static/js/main.93598e2b.js",
+    "index.html": "/geology-field-app/index.html",
+    "main.8b2e9b36.css.map": "/geology-field-app/static/css/main.8b2e9b36.css.map",
+    "main.93598e2b.js.map": "/geology-field-app/static/js/main.93598e2b.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.8b2e9b36.css",
+    "static/js/main.93598e2b.js"
+  ]
+}
