@@ -71,6 +71,8 @@ function GrainForm() {
 
   const [gpsError, setGpsError] = useState(null);
   const [manualGPSEntry, setManualGPSEntry] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(true);
+  const [lastGPSLocation, setLastGPSLocation] = useState(null);
 
   // Grain size options - standard geological classifications
   const grainSizeOptions = [
@@ -87,18 +89,29 @@ function GrainForm() {
 
   useEffect(() => {
     // Get GPS location automatically
+    setGpsLoading(true);
     getGPSLocation().then((gpsData) => {
+      setGpsLoading(false);
       if (gpsData.error) {
         setGpsError(gpsData.error);
         setManualGPSEntry(gpsData.manualEntry);
       } else {
+        // Check if coordinates are the same as last time (might be cached/default)
+        const currentCoords = `${gpsData.latitude},${gpsData.longitude}`;
+        if (lastGPSLocation && lastGPSLocation === currentCoords) {
+          console.warn("Same coordinates detected - may be cached/default location");
+          setGpsError("Warning: Same coordinates detected. This may be a cached location. Please use 'Refresh GPS' or enter coordinates manually.");
+        } else {
+          setGpsError(null);
+        }
+        
+        setLastGPSLocation(currentCoords);
         setFormData((prev) => ({
           ...prev,
           gpsLatitude: gpsData.latitude,
           gpsLongitude: gpsData.longitude,
           gpsString: formatGPSString(gpsData.latitude, gpsData.longitude),
         }));
-        setGpsError(null);
         setManualGPSEntry(false);
       }
     });
@@ -106,6 +119,7 @@ function GrainForm() {
     // Set timestamp
     const now = new Date().toISOString();
     setFormData((prev) => ({ ...prev, timestamp: now }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChange = (e) => {
@@ -146,18 +160,38 @@ function GrainForm() {
   const handleRetryGPS = () => {
     setGpsError(null);
     setManualGPSEntry(false);
+    setGpsLoading(true);
+    setLastGPSLocation(null); // Clear last location to force fresh check
+    // Clear any cached coordinates first
+    setFormData((prev) => ({
+      ...prev,
+      gpsLatitude: "",
+      gpsLongitude: "",
+      gpsString: "Getting location...",
+    }));
+    
     getGPSLocation().then((gpsData) => {
+      setGpsLoading(false);
       if (gpsData.error) {
         setGpsError(gpsData.error);
         setManualGPSEntry(gpsData.manualEntry);
       } else {
+        // Check if coordinates are the same as last time (might be cached/default)
+        const currentCoords = `${gpsData.latitude},${gpsData.longitude}`;
+        if (lastGPSLocation && lastGPSLocation === currentCoords) {
+          console.warn("Same coordinates detected - may be cached/default location");
+          setGpsError("Warning: Same coordinates detected. This may be a cached location. Please enter coordinates manually or try on a mobile device with GPS.");
+        } else {
+          setGpsError(null);
+        }
+        
+        setLastGPSLocation(currentCoords);
         setFormData((prev) => ({
           ...prev,
           gpsLatitude: gpsData.latitude,
           gpsLongitude: gpsData.longitude,
           gpsString: formatGPSString(gpsData.latitude, gpsData.longitude),
         }));
-        setGpsError(null);
         setManualGPSEntry(false);
       }
     });
@@ -326,6 +360,9 @@ function GrainForm() {
             <label style={labelStyle}>
               GPS Coordinates <span style={requiredStyle}>*</span>
             </label>
+            <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.8125rem", color: "#6b7280", fontStyle: "italic" }}>
+              📍 For accurate GPS: Allow location permission when prompted. Use HTTPS or mobile device for best results.
+            </p>
             {gpsError && (
               <div style={errorStyle}>
                 <div style={errorHeaderStyle}>
@@ -379,11 +416,38 @@ function GrainForm() {
                 </button>
               </div>
             )}
-            <input
-              value={formData.gpsString || "Getting location..."}
-              readOnly
-              style={readOnlyInputStyle}
-            />
+            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+              <input
+                value={gpsLoading ? "Getting location..." : (formData.gpsString || "No location available")}
+                readOnly
+                style={readOnlyInputStyle}
+              />
+              <button
+                type="button"
+                onClick={handleRetryGPS}
+                style={{
+                  ...retryButtonStyle,
+                  padding: "0.75rem 1.25rem",
+                  whiteSpace: "nowrap",
+                  marginTop: "0",
+                }}
+                disabled={gpsLoading}
+                onMouseEnter={(e) => {
+                  if (!gpsLoading) {
+                    e.target.style.background = "#e0e2e5";
+                    e.target.style.borderColor = "#8b6f47";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!gpsLoading) {
+                    e.target.style.background = "#f0f2f5";
+                    e.target.style.borderColor = "#d1d5db";
+                  }
+                }}
+              >
+                {gpsLoading ? "Loading..." : "Refresh GPS"}
+              </button>
+            </div>
           </div>
 
           <div style={fieldGroupStyle}>
