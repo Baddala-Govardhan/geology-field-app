@@ -1,72 +1,121 @@
 # Geology Field Data Collection System
 
-# Live Link - https://baddala-govardhan.github.io/geology-field-app/#home 
+# Live Link - https://baddala-govardhan.github.io/geology-field-app/
 
-As of now it's just a webpage which's connected to docker and storing data in pouchdb and couchdb
+## Deployment steps
 
-## Steps to run
+## One-Command Deployment
 
-### 1. Clone and Install Node Modules
+Deploy the entire application (website + CouchDB) with a single command:
+
+### Step 1: Connect to Server
 
 ```bash
+ssh username@your-server-ip
+```
+
+### Step 2: Run Deployment Script
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Baddala-Govardhan/geology-field-app/main/deploy-production.sh | bash
+```
+
+**OR** if you prefer to download first:
+
+```bash
+wget https://raw.githubusercontent.com/Baddala-Govardhan/geology-field-app/main/deploy-production.sh
+chmod +x deploy-production.sh
+./deploy-production.sh
+```
+
+That's it! The script will automatically:
+- Install Docker and Docker Compose
+- Install Node.js
+- Clone the repository
+- Build the frontend
+- Start CouchDB and frontend containers
+- Create the database
+- Configure Nginx reverse proxy
+- Set up firewall
+
+### Step 3: Access Your Application
+
+After deployment completes, you'll see the access URLs:
+
+- **Frontend**: `http://your-server-ip`
+- **CouchDB Admin**: `http://your-server-ip/couchdb/_utils`
+  - Username: `app`
+  - Password: `app`
+
+---
+
+## Optional: Use Domain Name
+
+If you have a domain name:
+
+1. Edit Nginx config:
+   ```bash
+   sudo nano /etc/nginx/sites-available/geology-app
+   ```
+
+2. Change this line:
+   ```nginx
+   server_name _;
+   ```
+   To:
+   ```nginx
+   server_name your-domain.com;
+   ```
+
+3. Test and reload:
+   ```bash
+   sudo nginx -t
+   sudo systemctl reload nginx
+   ```
+
+4. Update DNS: Point your domain to the server IP
+
+---
+
+## Optional: Set Up SSL (HTTPS)
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain.com
+```
+
+---
+
+## Troubleshooting
+
+### Check if services are running:
+```bash
+docker compose ps
+```
+
+### View logs:
+```bash
+docker compose logs -f
+```
+
+### Restart services:
+```bash
+cd /opt/geology-field-app
+docker compose restart
+```
+
+### Update application:
+```bash
+cd /opt/geology-field-app
+git pull origin main
 npm install
-```
-
-### 2. Build React App
-
-```bash
 npm run build
+docker compose up -d --build frontend
 ```
 
-### 3. Run Docker Containers
+---
 
-#### Start CouchDB
+## That's All!
 
-```bash
-docker run -d \
-  --name couchdb \
-  -e COUCHDB_USER=app \
-  -e COUCHDB_PASSWORD=app \
-  -p 5984:5984 \
-  couchdb
-```
+The deployment script handles everything automatically. Just run the one command and wait for it to complete!
 
-Use username and password **"app"** and check the default link for couchdb: http://localhost:5984/_utils
-
-#### Start Frontend (React + Nginx)
-
-```bash
-docker build -t geology-field-app .
-docker run -d -p 3000:80 geology-field-app
-```
-
-Frontend app URL: http://localhost:3000
-
-## 🚀 GitHub Pages Deployment
-
-The app is automatically deployed to GitHub Pages using GitHub Actions.
-
-**Live Site**: https://baddala-govardhan.github.io/geology-field-app
-
-### How it works:
-1. Push code to the `main` branch
-2. GitHub Actions automatically builds and deploys the app
-3. The site is available at the URL above
-
-**Note**: CouchDB functionality requires a backend server. For full functionality with data storage, use the Docker setup locally.
-
-## Screenshots
-
-<img width="2940" height="1764" alt="Home Page" src="https://github.com/user-attachments/assets/7d19252b-cb09-41bf-9b4a-3058de5ecb4e" />
-
-<img width="1470" height="882" alt="Grain Size Form" src="https://github.com/user-attachments/assets/10867e05-8193-4976-a855-771a78e160ec" />
-
-<img width="2940" height="1764" alt="Flow Measurement Form" src="https://github.com/user-attachments/assets/1ac78238-a22c-4e68-9562-ec4bb9f60006" />
-
-## Features
-
-- Grain Size data collection with GPS coordinates
-- Flow Measurement data collection
-- Contact form
-- Real-time data sync with CouchDB
-- Offline-first with PouchDB
