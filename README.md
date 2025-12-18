@@ -1,6 +1,6 @@
 # Geology Field Data Collection System
 
-# Live Link - https://baddala-govardhan.github.io/geology-field-app/
+# Live Link - https://baddala-govardhan.github.io/geology-field-app/    I just deployed in my github 
 
 ## Deployment steps
 
