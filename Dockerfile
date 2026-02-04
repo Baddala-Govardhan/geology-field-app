@@ -15,10 +15,17 @@
 
 FROM node:18 AS builder
 WORKDIR /app
-COPY . .
+
+# Install dependencies first for better Docker layer caching
+COPY package*.json ./
 RUN npm install
+
+# Copy the rest of the app source and build
+COPY . .
 RUN npm run build
 
 FROM nginx:alpine
+
+# Serve the app at the root path (/)
 COPY --from=builder /app/build /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf

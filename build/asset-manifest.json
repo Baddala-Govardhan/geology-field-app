@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/geology-field-app/static/css/main.8b2e9b36.css",
-    "main.js": "/geology-field-app/static/js/main.8179fddd.js",
+    "main.css": "/geology-field-app/static/css/main.ef888a50.css",
+    "main.js": "/geology-field-app/static/js/main.7feb83b4.js",
     "index.html": "/geology-field-app/index.html",
-    "main.8b2e9b36.css.map": "/geology-field-app/static/css/main.8b2e9b36.css.map",
-    "main.8179fddd.js.map": "/geology-field-app/static/js/main.8179fddd.js.map"
+    "main.ef888a50.css.map": "/geology-field-app/static/css/main.ef888a50.css.map",
+    "main.7feb83b4.js.map": "/geology-field-app/static/js/main.7feb83b4.js.map"
   },
   "entrypoints": [
-    "static/css/main.8b2e9b36.css",
-    "static/js/main.8179fddd.js"
+    "static/css/main.ef888a50.css",
+    "static/js/main.7feb83b4.js"
   ]
 }

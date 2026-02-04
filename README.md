@@ -1,121 +1,127 @@
-# Geology Field Data Collection System
+## Geology Field App
 
-# Live Link - https://baddala-govardhan.github.io/geology-field-app/
+Simple React-based field data collection UI backed by CouchDB, fully containerized with Docker.
 
-## Deployment steps
+- **Live demo (GitHub Pages)**: `https://baddala-govardhan.github.io/geology-field-app/`
 
-## One-Command Deployment
+---
 
-Deploy the entire application (website + CouchDB) with a single command:
+## Architecture (Docker-first)
 
-### Step 1: Connect to Server
+- **frontend (Nginx + React)**:
+  - Builds the React app inside the image.
+  - Serves the static UI via Nginx.
+  - Proxies all requests under `/couchdb/` to the CouchDB container.
+- **couchdb**:
+  - Official `couchdb:latest` image.
+  - Database `geology-data` auto-created on startup.
+  - Credentials: username `app`, password `app`.
+  - Data persisted to a host folder via a Docker volume.
+
+All services are started and wired together by `docker-compose.yml`. No host-level Nginx or extra install scripts are required.
+
+---
+
+## Prerequisites
+
+- **Docker** (Docker Desktop on macOS/Windows, or Docker Engine on Linux)
+- **Docker Compose v2** (`docker compose` command)
+
+You do **not** need Node.js, Nginx, or CouchDB installed on your machine.
+
+---
+
+## Running the app with Docker
+
+From the project root:
 
 ```bash
-ssh username@your-server-ip
+docker compose up --build
 ```
 
-### Step 2: Run Deployment Script
+This will:
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/Baddala-Govardhan/geology-field-app/main/deploy-production.sh | bash
-```
+- Build the frontend image (React build + Nginx).
+- Start the `couchdb` container.
+- Start the `frontend` (Nginx) container.
 
-**OR** if you prefer to download first:
+Once the containers are up:
 
-```bash
-wget https://raw.githubusercontent.com/Baddala-Govardhan/geology-field-app/main/deploy-production.sh
-chmod +x deploy-production.sh
-./deploy-production.sh
-```
-
-That's it! The script will automatically:
-- Install Docker and Docker Compose
-- Install Node.js
-- Clone the repository
-- Build the frontend
-- Start CouchDB and frontend containers
-- Create the database
-- Configure Nginx reverse proxy
-- Set up firewall
-
-### Step 3: Access Your Application
-
-After deployment completes, you'll see the access URLs:
-
-- **Frontend**: `http://your-server-ip`
-- **CouchDB Admin**: `http://your-server-ip/couchdb/_utils`
+- **Frontend UI**: `http://localhost:3000`
+- **CouchDB admin (Fauxton)**: `http://localhost:3000/couchdb/_utils`
   - Username: `app`
   - Password: `app`
 
----
-
-## Optional: Use Domain Name
-
-If you have a domain name:
-
-1. Edit Nginx config:
-   ```bash
-   sudo nano /etc/nginx/sites-available/geology-app
-   ```
-
-2. Change this line:
-   ```nginx
-   server_name _;
-   ```
-   To:
-   ```nginx
-   server_name your-domain.com;
-   ```
-
-3. Test and reload:
-   ```bash
-   sudo nginx -t
-   sudo systemctl reload nginx
-   ```
-
-4. Update DNS: Point your domain to the server IP
-
----
-
-## Optional: Set Up SSL (HTTPS)
+To run in the background:
 
 ```bash
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
+docker compose up -d --build
 ```
+
+To stop everything:
+
+```bash
+docker compose down
+```
+
+---
+
+## Data persistence (CouchDB volume)
+
+CouchDB data is stored in a folder on your local machine via a bind-mounted Docker volume:
+
+- Host path: `./couchdb/data`
+- Container path: `/opt/couchdb/data`
+
+This means:
+
+- Stopping and starting containers does **not** delete your data.
+- To completely reset the database, you can remove the `couchdb/data` folder (with containers stopped), then run `docker compose up --build` again.
+
+---
+
+## Container layout
+
+- **`frontend` service**
+  - Built from `Dockerfile`.
+  - Uses `nginx/nginx.conf` to:
+    - Serve the React build from `/usr/share/nginx/html`.
+    - Proxy `/couchdb/…` requests to the `couchdb` service with proper CORS and auth headers.
+
+- **`couchdb` service**
+  - Configured via environment variables in `docker-compose.yml`.
+  - Initialization script: `couchdb/init.sh`
+    - Waits for CouchDB to be ready.
+    - Creates the `geology-data` database if it does not already exist.
+
+Both services share the default Docker network created by Compose, so `nginx` can reach CouchDB at the hostname `couchdb`.
 
 ---
 
 ## Troubleshooting
 
-### Check if services are running:
+- **See running containers**
+
 ```bash
 docker compose ps
 ```
 
-### View logs:
+- **View logs**
+
 ```bash
 docker compose logs -f
 ```
 
-### Restart services:
+- **Rebuild after code changes**
+
 ```bash
-cd /opt/geology-field-app
-docker compose restart
+docker compose up --build
 ```
 
-### Update application:
+If you run into issues starting containers, try:
+
 ```bash
-cd /opt/geology-field-app
-git pull origin main
-npm install
-npm run build
-docker compose up -d --build frontend
+docker compose down
+docker compose up --build
 ```
-
----
-
-## That's All!
-
-The deployment script handles everything automatically. Just run the one command and wait for it to complete!
 

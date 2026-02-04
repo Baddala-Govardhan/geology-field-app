@@ -38,8 +38,9 @@ services:
     ports:
       - "5984:5984"
     volumes:
-      - couchdb_data:/opt/couchdb/data
-      - ./couchdb-init.sh:/docker-entrypoint-initdb.d/couchdb-init.sh:ro
+      # Persist CouchDB data in a folder on the host machine
+      - ./couchdb/data:/opt/couchdb/data
+      - ./couchdb/init.sh:/docker-entrypoint-initdb.d/couchdb-init.sh:ro
     command: >
       bash -c "
         echo '[couchdb]\nsingle_node=true\n' > /opt/couchdb/etc/local.d/docker.ini &&
@@ -58,6 +59,3 @@ services:
       - "3000:80"
     depends_on:
       - couchdb
-
-volumes:
-  couchdb_data:

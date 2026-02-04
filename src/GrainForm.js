@@ -40,21 +40,40 @@ const remoteDB = new PouchDB(getCouchDBUrl(), {
       console.log("Created geology-data database in CouchDB");
       } catch (createErr) {
         console.error("Error creating CouchDB database:", createErr);
+        console.log("Working offline - data will be saved locally and synced when online");
       }
     } else {
       console.error("Error checking CouchDB:", err);
+      console.log("Working offline - data will be saved locally and synced when online");
     }
   }
 
-  // Start sync
-db.sync(remoteDB, {
-  live: true,
-  retry: true,
-})
-  .on("change", (info) => console.log("Sync change:", info))
-  .on("paused", () => console.log("Sync paused"))
-  .on("active", () => console.log("Sync active"))
-  .on("error", (err) => console.error("Sync error:", err));
+  // Start sync with retry enabled for offline support
+  // This will automatically sync when connection is restored
+  db.sync(remoteDB, {
+    live: true,
+    retry: true,
+  })
+    .on("change", (info) => {
+      console.log("Sync change:", info);
+      if (info.direction === 'push') {
+        console.log("Data synced to server successfully");
+      }
+    })
+    .on("paused", () => {
+      console.log("Sync paused - offline or connection issue");
+    })
+    .on("active", () => {
+      console.log("Sync active - connected to server");
+    })
+    .on("error", (err) => {
+      // Don't show errors for offline scenarios - this is expected
+      if (err.status !== 0 && err.status !== undefined) {
+        console.error("Sync error:", err);
+      } else {
+        console.log("Offline - sync will resume when connection is restored");
+      }
+    });
 })();
 
 function GrainForm() {
@@ -227,9 +246,16 @@ function GrainForm() {
         createdAt: new Date().toISOString(),
       };
 
+      // Save to local PouchDB first (works offline)
       await db.put(doc);
 
-      alert("Grain size data saved locally and will sync to CouchDB");
+      // Check if online/offline
+      const isOnline = navigator.onLine;
+      if (isOnline) {
+        alert("Grain size data saved locally and will sync to CouchDB");
+      } else {
+        alert("Grain size data saved locally (offline). It will sync to CouchDB when internet connection is restored.");
+      }
       
       // Reset form but keep GPS and update timestamp
       const now = new Date().toISOString();

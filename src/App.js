@@ -44,7 +44,8 @@ function Navigation() {
 
   const handleScrollClick = (e, sectionId) => {
     e.preventDefault();
-    const basename = process.env.PUBLIC_URL || '/geology-field-app';
+    // For Docker/local we serve the app at root (/)
+    const basename = process.env.PUBLIC_URL || '/';
     
     if (isHomePage) {
       const element = document.getElementById(sectionId);
@@ -104,22 +105,8 @@ function Navigation() {
 }
 
 function App() {
-  // Set basename for GitHub Pages deployment
-  // Check if we're on GitHub Pages (has /geology-field-app in path)
-  const getBasename = () => {
-    if (typeof window !== 'undefined') {
-      const path = window.location.pathname;
-      if (path.startsWith('/geology-field-app')) {
-        return '/geology-field-app';
-      }
-    }
-    return process.env.PUBLIC_URL || '/geology-field-app';
-  };
-  
-  const basename = getBasename();
-  
   return (
-    <Router basename={basename}>
+    <Router>
       <AppContent />
     </Router>
   );
@@ -166,6 +153,7 @@ function AppContent() {
           <Route path="/flow" element={<FlowForm />} />
         </Routes>
       </main>
+      
     </div>
   );
 }
