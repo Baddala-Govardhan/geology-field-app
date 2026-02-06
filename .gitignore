@@ -28,3 +28,7 @@ yarn-error.log*
 .vscode/
 .idea/
 *.tmp
+
+# CouchDB data (should not be committed)
+couchdb/data/*
+!couchdb/data/.gitkeep

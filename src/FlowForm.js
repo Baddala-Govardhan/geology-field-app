@@ -1,79 +1,5 @@
 import React, { useState } from "react";
-import PouchDB from "pouchdb";
-
-// Initialize local PouchDB
-const db = new PouchDB("geology_field_data");
-
-// Initialize remote CouchDB connection
-// Always use nginx proxy when accessed through web interface
-const getCouchDBUrl = () => {
-  const hostname = window.location.hostname;
-  const port = window.location.port;
-  const protocol = window.location.protocol;
-  // Use nginx proxy path
-  const baseUrl = `${protocol}//${hostname}${port ? `:${port}` : ''}/couchdb/geology-data`;
-  return baseUrl;
-};
-
-const remoteDB = new PouchDB(getCouchDBUrl(), {
-  skip_setup: true,
-});
-
-// Initialize CouchDB database and sync
-(async () => {
-  try {
-    await remoteDB.info();
-    console.log("Remote DB ready");
-  } catch (err) {
-    if (err.status === 404) {
-      try {
-        // Create database using fetch with proper authentication
-        const createUrl = getCouchDBUrl();
-        await fetch(createUrl, { 
-          method: "PUT",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": "Basic " + btoa("app:app")
-          }
-        });
-        console.log("Created geology-data database in CouchDB");
-      } catch (createErr) {
-        console.error("Error creating CouchDB database:", createErr);
-        console.log("Working offline - data will be saved locally and synced when online");
-      }
-    } else {
-      console.error("Error checking CouchDB:", err);
-      console.log("Working offline - data will be saved locally and synced when online");
-    }
-  }
-
-  // Start sync with retry enabled for offline support
-  // This will automatically sync when connection is restored
-  db.sync(remoteDB, {
-    live: true,
-    retry: true,
-  })
-    .on("change", (info) => {
-      console.log("Sync change:", info);
-      if (info.direction === 'push') {
-        console.log("Data synced to server successfully");
-      }
-    })
-    .on("paused", () => {
-      console.log("Sync paused - offline or connection issue");
-    })
-    .on("active", () => {
-      console.log("Sync active - connected to server");
-    })
-    .on("error", (err) => {
-      // Don't show errors for offline scenarios - this is expected
-      if (err.status !== 0 && err.status !== undefined) {
-        console.error("Sync error:", err);
-      } else {
-        console.log("Offline - sync will resume when connection is restored");
-      }
-    });
-})();
+import { localDB, checkOnlineStatus } from "./utils/database";
 
 function FlowForm() {
   const [formData, setFormData] = useState({
@@ -118,10 +44,10 @@ function FlowForm() {
       };
 
       // Save to local PouchDB first (works offline)
-      await db.put(doc);
+      await localDB.put(doc);
 
       // Check if online/offline
-      const isOnline = navigator.onLine;
+      const isOnline = checkOnlineStatus();
       if (isOnline) {
         alert("Flow measurement saved locally and will sync to CouchDB");
       } else {

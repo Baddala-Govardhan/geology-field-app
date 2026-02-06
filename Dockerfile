@@ -22,7 +22,9 @@ RUN npm install
 
 # Copy the rest of the app source and build
 COPY . .
-RUN npm run build
+# Override homepage for Docker to serve at root path (/)
+# PUBLIC_URL=/ tells Create React App to use root path
+RUN PUBLIC_URL=/ npm run build
 
 FROM nginx:alpine
 

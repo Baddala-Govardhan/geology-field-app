@@ -2,8 +2,6 @@
 
 Simple React-based field data collection UI backed by CouchDB, fully containerized with Docker.
 
-- **Live demo (GitHub Pages)**: `https://baddala-govardhan.github.io/geology-field-app/`
-
 ---
 
 ## Architecture (Docker-first)

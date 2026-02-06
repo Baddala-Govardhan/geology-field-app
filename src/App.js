@@ -32,6 +32,7 @@ import Signup from "./pages/Signup";
 import Contact from "./pages/Contact";
 import GrainForm from "./GrainForm";
 import FlowForm from "./FlowForm";
+import SyncStatus from "./components/SyncStatus";
 
 function Navigation() {
   const location = useLocation();
@@ -44,8 +45,10 @@ function Navigation() {
 
   const handleScrollClick = (e, sectionId) => {
     e.preventDefault();
-    // For Docker/local we serve the app at root (/)
-    const basename = process.env.PUBLIC_URL || '/';
+    // Detect basename dynamically
+    const basename = window.location.pathname.startsWith('/geology-field-app') 
+      ? '/geology-field-app' 
+      : '';
     
     if (isHomePage) {
       const element = document.getElementById(sectionId);
@@ -105,8 +108,22 @@ function Navigation() {
 }
 
 function App() {
+  // Detect if running on GitHub Pages or Docker/local
+  const getBasename = () => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path.startsWith('/geology-field-app')) {
+        return '/geology-field-app';
+      }
+    }
+    // For Docker/local, serve at root
+    return '';
+  };
+  
+  const basename = getBasename();
+  
   return (
-    <Router>
+    <Router basename={basename}>
       <AppContent />
     </Router>
   );
@@ -141,6 +158,7 @@ function AppContent() {
       )}
       
       <Navigation />
+      <SyncStatus />
       
       <main style={mainStyle}>
         <Routes>

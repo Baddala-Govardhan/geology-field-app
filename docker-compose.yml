@@ -25,8 +25,6 @@
 # volumes:
 #   couchdb_data:
 
-version: "3.9"
-
 services:
   couchdb:
     image: couchdb:latest
@@ -40,14 +38,16 @@ services:
     volumes:
       # Persist CouchDB data in a folder on the host machine
       - ./couchdb/data:/opt/couchdb/data
-      - ./couchdb/init.sh:/docker-entrypoint-initdb.d/couchdb-init.sh:ro
     command: >
       bash -c "
         echo '[couchdb]\nsingle_node=true\n' > /opt/couchdb/etc/local.d/docker.ini &&
         echo '[chttpd]\nrequire_valid_user = true\n' >> /opt/couchdb/etc/local.d/docker.ini &&
         echo '[cors]\nenabled = true\n' >> /opt/couchdb/etc/local.d/docker.ini &&
         echo '[cors]\norigins = *\nmethods = GET, PUT, POST, DELETE, OPTIONS\nheaders = accept, authorization, content-type, origin, referer\n' >> /opt/couchdb/etc/local.d/docker.ini &&
-        /docker-entrypoint.sh /opt/couchdb/bin/couchdb
+        /docker-entrypoint.sh /opt/couchdb/bin/couchdb &
+        sleep 10 &&
+        curl -u app:app -X PUT http://127.0.0.1:5984/geology-data || echo 'Database may already exist' &&
+        wait
       "
 
   frontend:
