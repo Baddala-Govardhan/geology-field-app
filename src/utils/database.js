@@ -19,6 +19,19 @@ export const remoteDB = new PouchDB(getCouchDBUrl(), {
 // Sync handler
 let syncHandler = null;
 let isOnline = navigator.onLine;
+let isConnectedToCouchDB = false;
+
+// Check actual connectivity to CouchDB
+const checkCouchDBConnection = async () => {
+  try {
+    await remoteDB.info();
+    isConnectedToCouchDB = true;
+    return true;
+  } catch (err) {
+    isConnectedToCouchDB = false;
+    return false;
+  }
+};
 
 // Initialize database and start sync
 export const initDatabase = async () => {
@@ -26,6 +39,7 @@ export const initDatabase = async () => {
     // Check if remote database exists
     await remoteDB.info();
     console.log("Remote DB ready");
+    isConnectedToCouchDB = true;
   } catch (err) {
     if (err.status === 404) {
       // Database doesn't exist, create it
@@ -39,13 +53,16 @@ export const initDatabase = async () => {
           }
         });
         console.log("Created geology-data database in CouchDB");
+        isConnectedToCouchDB = true;
       } catch (createErr) {
         console.error("Error creating CouchDB database:", createErr);
         console.log("Working offline - data will be saved locally and synced when online");
+        isConnectedToCouchDB = false;
       }
     } else {
       console.error("Error checking CouchDB:", err);
       console.log("Working offline - data will be saved locally and synced when online");
+      isConnectedToCouchDB = false;
     }
   }
 
@@ -58,6 +75,11 @@ export const startSync = () => {
   // Cancel existing sync if any
   if (syncHandler) {
     syncHandler.cancel();
+  }
+
+  // Set initial status to syncing if online
+  if (navigator.onLine) {
+    updateSyncStatus("syncing");
   }
 
   // Start new sync with retry enabled
@@ -79,12 +101,30 @@ export const startSync = () => {
         updateSyncStatus("synced");
       }
     })
-    .on("paused", () => {
-      console.log("Sync paused - offline or connection issue");
-      updateSyncStatus("paused");
+    .on("paused", async () => {
+      // Check if we're actually online and can reach CouchDB
+      const canConnect = await checkCouchDBConnection();
+      if (canConnect && navigator.onLine) {
+        console.log("Sync paused temporarily - will retry automatically");
+        updateSyncStatus("syncing");
+        // Retry sync after a short delay
+        setTimeout(() => {
+          if (!syncHandler || syncHandler.state === 'paused') {
+            startSync();
+          }
+        }, 2000);
+      } else {
+        console.log("Sync paused - offline or connection issue");
+        if (!navigator.onLine) {
+          updateSyncStatus("offline");
+        } else {
+          updateSyncStatus("paused");
+        }
+      }
     })
     .on("active", () => {
       console.log("Sync active - connected to server");
+      isConnectedToCouchDB = true;
       updateSyncStatus("syncing");
     })
     .on("error", (err) => {
@@ -117,26 +157,47 @@ const updateSyncStatus = (status) => {
 
 // Check online/offline status
 export const checkOnlineStatus = () => {
-  return navigator.onLine;
+  return navigator.onLine && isConnectedToCouchDB;
 };
 
 // Setup online/offline event listeners
 export const setupOnlineOfflineListeners = () => {
-  const handleOnline = () => {
-    console.log("Internet connection restored - resuming sync");
+  const handleOnline = async () => {
+    console.log("Internet connection detected - checking CouchDB connectivity");
     isOnline = true;
-    startSync();
-    updateSyncStatus("syncing");
+    
+    // Verify we can actually reach CouchDB
+    const canConnect = await checkCouchDBConnection();
+    if (canConnect) {
+      console.log("CouchDB reachable - resuming sync");
+      startSync();
+      updateSyncStatus("syncing");
+    } else {
+      console.log("Internet available but CouchDB not reachable - check Docker containers");
+      updateSyncStatus("paused");
+    }
   };
 
   const handleOffline = () => {
     console.log("Internet connection lost - working offline");
     isOnline = false;
+    isConnectedToCouchDB = false;
     updateSyncStatus("offline");
   };
 
   window.addEventListener("online", handleOnline);
   window.addEventListener("offline", handleOffline);
+
+  // Also check periodically if sync is paused but we're online
+  setInterval(async () => {
+    if (navigator.onLine && (!syncHandler || syncHandler.state === 'paused')) {
+      const canConnect = await checkCouchDBConnection();
+      if (canConnect) {
+        console.log("Auto-resuming sync - connection restored");
+        startSync();
+      }
+    }
+  }, 10000); // Check every 10 seconds
 
   return () => {
     window.removeEventListener("online", handleOnline);
@@ -145,5 +206,15 @@ export const setupOnlineOfflineListeners = () => {
 };
 
 // Initialize everything
-initDatabase();
+initDatabase().then(() => {
+  // After initialization, check if we should show synced status
+  setTimeout(() => {
+    if (isConnectedToCouchDB && navigator.onLine) {
+      // If sync is active and no errors, show synced
+      if (syncHandler && syncHandler.state === 'active') {
+        updateSyncStatus("synced");
+      }
+    }
+  }, 3000);
+});
 setupOnlineOfflineListeners();

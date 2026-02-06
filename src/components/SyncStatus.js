@@ -3,23 +3,36 @@ import { onSyncStatusChange, checkOnlineStatus } from "../utils/database";
 
 function SyncStatus() {
   const [status, setStatus] = useState("syncing");
-  const [isOnline, setIsOnline] = useState(checkOnlineStatus());
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
     // Listen to sync status changes
     const unsubscribe = onSyncStatusChange((newStatus) => {
       setStatus(newStatus);
+      // If status is syncing or synced, we're online
+      if (newStatus === "syncing" || newStatus === "synced") {
+        setIsOnline(true);
+      } else if (newStatus === "offline") {
+        setIsOnline(false);
+      }
     });
 
     // Listen to online/offline events
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => {
+      setIsOnline(true);
+      // Status will update via sync status callback
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
-    // Initial check
-    setIsOnline(checkOnlineStatus());
+    // Initial check - wait a bit for database to initialize
+    setTimeout(() => {
+      setIsOnline(navigator.onLine && checkOnlineStatus());
+    }, 1000);
 
     return () => {
       unsubscribe();
