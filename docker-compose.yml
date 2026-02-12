@@ -33,8 +33,10 @@ services:
     environment:
       - COUCHDB_USER=app
       - COUCHDB_PASSWORD=app
+    # Developer only: CouchDB on localhost so only you can connect (e.g. Fauxton, curl).
+    # Students and outsiders cannot reach this; professor uses Admin in the app.
     ports:
-      - "5984:5984"
+      - "127.0.0.1:5984:5984"
     volumes:
       # Persist CouchDB data in a folder on the host machine
       - ./couchdb/data:/opt/couchdb/data

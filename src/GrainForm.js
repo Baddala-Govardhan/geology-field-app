@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getGPSLocation, formatGPSString } from "./utils/gps";
-import { localDB, checkOnlineStatus, onSyncStatusChange } from "./utils/database";
+import { localDB, checkOnlineStatus, getAuthorId } from "./utils/database";
 
 function GrainForm() {
   const [formData, setFormData] = useState({
@@ -158,7 +158,8 @@ function GrainForm() {
       // Create document with type field for CouchDB organization
       const doc = {
         _id,
-        type: "grain", // This distinguishes it from "flow" documents
+        type: "grain",
+        authorId: getAuthorId(),
         grainSize: formData.grainSize,
         sizeMeasurement: formData.sizeMeasurement ? parseFloat(formData.sizeMeasurement) : null,
         quantity: formData.quantity ? parseFloat(formData.quantity) : null,

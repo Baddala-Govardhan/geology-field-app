@@ -1,9 +1,73 @@
 import PouchDB from "pouchdb";
 
-// Initialize local PouchDB (works offline)
+export const STUDENT_ID_CONFIG = {
+  maxLength: 14,
+  placeholderExample: "012617684",
+  placeholderNewExample: "012617684",
+};
+
+const STUDENT_ID_KEY = "geology_student_id";
+const IP_FALLBACK_KEY = "geology_ip_id";
+const DEVICE_ID_KEY = "geology_author_id";
+const SKIP_STUDENT_ID_PROMPT_KEY = "geology_skip_student_id_prompt";
+
+export function getStudentId() {
+  const id = localStorage.getItem(STUDENT_ID_KEY);
+  return id ? id.trim() : null;
+}
+
+export function setStudentId(id) {
+  const trimmed = (id || "").trim().slice(0, STUDENT_ID_CONFIG.maxLength);
+  if (trimmed) {
+    localStorage.setItem(STUDENT_ID_KEY, trimmed);
+  } else {
+    localStorage.removeItem(STUDENT_ID_KEY);
+  }
+}
+
+export function getSkipStudentIdPrompt() {
+  return localStorage.getItem(SKIP_STUDENT_ID_PROMPT_KEY) === "true";
+}
+
+export function setSkipStudentIdPrompt(skip) {
+  if (skip) {
+    localStorage.setItem(SKIP_STUDENT_ID_PROMPT_KEY, "true");
+  } else {
+    localStorage.removeItem(SKIP_STUDENT_ID_PROMPT_KEY);
+  }
+}
+
+function getDeviceId() {
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = "d_" + Math.random().toString(36).slice(2) + "_" + Date.now();
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
+
+export function getAuthorId() {
+  return getStudentId() || localStorage.getItem(IP_FALLBACK_KEY) || getDeviceId();
+}
+
+export async function initIpFallback() {
+  if (getStudentId()) return;
+  try {
+    const res = await fetch("https://api.ipify.org?format=json", { method: "GET" });
+    const data = await res.json();
+    const ip = (data && data.ip) ? String(data.ip).replace(/\./g, "_") : null;
+    if (ip) {
+      const id = "ip_" + ip;
+      localStorage.setItem(IP_FALLBACK_KEY, id);
+      startSync();
+    }
+  } catch (e) {
+    console.warn("Could not get IP for fallback ID:", e);
+  }
+}
+
 export const localDB = new PouchDB("geology_field_data");
 
-// Get CouchDB URL (uses nginx proxy)
 const getCouchDBUrl = () => {
   const hostname = window.location.hostname;
   const port = window.location.port;
@@ -11,7 +75,6 @@ const getCouchDBUrl = () => {
   return `${protocol}//${hostname}${port ? `:${port}` : ''}/couchdb/geology-data`;
 };
 
-// Initialize remote CouchDB connection
 export const remoteDB = new PouchDB(getCouchDBUrl(), {
   skip_setup: true,
 });
@@ -66,7 +129,34 @@ export const initDatabase = async () => {
     }
   }
 
-  // Start sync
+  if (isConnectedToCouchDB) {
+    try {
+      const baseUrl = getCouchDBUrl();
+      const designDoc = {
+        _id: "_design/filters",
+        filters: {
+          byAuthor: "function(doc, req) { if (!req.query.authorId) return false; return doc.authorId === req.query.authorId; }"
+        }
+      };
+      const res = await fetch(baseUrl + "/_design/filters", {
+        method: "GET",
+        credentials: "include"
+      });
+      if (res.ok) {
+        const existing = await res.json();
+        designDoc._rev = existing._rev;
+      }
+      await fetch(baseUrl + "/_design/filters", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(designDoc),
+        credentials: "include"
+      });
+    } catch (e) {
+      console.warn("Could not ensure filter design doc:", e);
+    }
+  }
+
   startSync();
 };
 
@@ -82,10 +172,14 @@ export const startSync = () => {
     updateSyncStatus("syncing");
   }
 
-  // Start new sync with retry enabled
+  const authorId = getAuthorId();
   syncHandler = localDB.sync(remoteDB, {
     live: true,
     retry: true,
+    pull: {
+      filter: "filters/byAuthor",
+      query_params: { authorId }
+    },
     back_off_function: (delay) => {
       if (delay === 0) return 1000;
       return Math.min(delay * 2, 10000);
@@ -207,10 +301,11 @@ export const setupOnlineOfflineListeners = () => {
 
 // Initialize everything
 initDatabase().then(() => {
-  // After initialization, check if we should show synced status
+  if (!getStudentId()) {
+    initIpFallback();
+  }
   setTimeout(() => {
     if (isConnectedToCouchDB && navigator.onLine) {
-      // If sync is active and no errors, show synced
       if (syncHandler && syncHandler.state === 'active') {
         updateSyncStatus("synced");
       }

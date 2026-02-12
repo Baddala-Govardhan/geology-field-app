@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { localDB, checkOnlineStatus } from "./utils/database";
+import { localDB, checkOnlineStatus, getAuthorId } from "./utils/database";
 
 function FlowForm() {
   const [formData, setFormData] = useState({
@@ -36,7 +36,8 @@ function FlowForm() {
       // Create document with type field for CouchDB organization
       const doc = {
         _id,
-        type: "flow", // This distinguishes it from "grain" documents
+        type: "flow",
+        authorId: getAuthorId(),
         depth: parseFloat(formData.depth),
         velocity: parseFloat(formData.velocity),
         distanceFromBank: parseFloat(formData.distanceFromBank),

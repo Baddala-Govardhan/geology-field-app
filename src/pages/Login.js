@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { loginAdmin } from "../utils/auth";
 
 function Login() {
   const [formData, setFormData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
   const [error, setError] = useState("");
@@ -21,19 +22,16 @@ function Login() {
     e.preventDefault();
     setError("");
 
-    // Simple validation
-    if (!formData.email || !formData.password) {
-      setError("Please fill in all fields");
+    if (!formData.username || !formData.password) {
+      setError("Please enter username and password");
       return;
     }
 
-    // For demo purposes, accept any email/password
-    // In production, this would authenticate with a backend
-    localStorage.setItem("isAuthenticated", "true");
-    localStorage.setItem("userEmail", formData.email);
-    
-    // Redirect to home or dashboard
-    navigate("/grain");
+    if (loginAdmin(formData.username, formData.password)) {
+      navigate("/admin");
+    } else {
+      setError("Invalid admin credentials");
+    }
   };
 
   return (
@@ -41,8 +39,8 @@ function Login() {
       <div style={backgroundPatternStyle}></div>
       <div style={cardStyle}>
         <div style={cardHeaderStyle}>
-          <h2 style={titleStyle}>Sign In</h2>
-          <p style={descriptionStyle}>Access your field data collection system</p>
+          <h2 style={titleStyle}>Admin Login</h2>
+          <p style={descriptionStyle}>Instructor access only. Students do not need to log in.</p>
         </div>
 
         <form onSubmit={handleSubmit} style={formStyle}>
@@ -54,16 +52,17 @@ function Login() {
 
           <div style={fieldGroupStyle}>
             <label style={labelStyle}>
-              Email Address <span style={requiredStyle}>*</span>
+              Username <span style={requiredStyle}>*</span>
             </label>
             <input
-              type="email"
-              name="email"
-              value={formData.email}
+              type="text"
+              name="username"
+              value={formData.username}
               onChange={handleChange}
               style={inputStyle}
-              placeholder="your.email@example.com"
+              placeholder="Admin username"
               required
+              autoComplete="username"
               onFocus={(e) => {
                 e.target.style.borderColor = "#111827";
                 e.target.style.boxShadow = "0 0 0 3px rgba(17, 24, 39, 0.1)";
@@ -85,8 +84,9 @@ function Login() {
               value={formData.password}
               onChange={handleChange}
               style={inputStyle}
-              placeholder="Enter your password"
+              placeholder="Admin password"
               required
+              autoComplete="current-password"
               onFocus={(e) => {
                 e.target.style.borderColor = "#111827";
                 e.target.style.boxShadow = "0 0 0 3px rgba(17, 24, 39, 0.1)";
@@ -112,16 +112,10 @@ function Login() {
               e.target.style.boxShadow = "0 1px 2px rgba(0, 0, 0, 0.05)";
             }}
           >
-            Sign In
+            Log in
           </button>
 
           <div style={footerTextStyle}>
-            <p style={footerParagraphStyle}>
-              Don't have an account?{" "}
-              <Link to="/signup" style={linkStyle}>
-                Sign up
-              </Link>
-            </p>
             <Link to="/" style={backLinkStyle}>
               ← Back to Home
             </Link>

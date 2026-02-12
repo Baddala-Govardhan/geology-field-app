@@ -25,22 +25,32 @@
 
 
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, Link } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Contact from "./pages/Contact";
+import Admin from "./pages/Admin";
+import MyData from "./pages/MyData";
+import StudentId from "./pages/StudentId";
 import GrainForm from "./GrainForm";
 import FlowForm from "./FlowForm";
 import SyncStatus from "./components/SyncStatus";
+import { isAdminLoggedIn } from "./utils/auth";
+import { getStudentId, setStudentId, startSync, STUDENT_ID_CONFIG } from "./utils/database";
 
 function Navigation() {
   const location = useLocation();
-  const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
-  const isHomePage = location.pathname === "/";
-  
-  if (isAuthPage) {
-    return null; // Hide navigation on login/signup pages
+  const path = (location.pathname || "").toLowerCase();
+  const isAuthPage = path === "/login" || path === "/signup";
+  const isAdminPage = path === "/admin";
+  const isMyDataPage = path === "/my-data" || path.endsWith("/my-data") || path.includes("my-data");
+  const isStudentIdPage = path === "/student-id" || path.endsWith("/student-id") || path.includes("student-id");
+  const isHomePath = path === "/" || path === "" || path === "/geology-field-app" || path === "/geology-field-app/";
+  const isHomePage = isHomePath && !isStudentIdPage && !isMyDataPage;
+
+  if (isAuthPage || isAdminPage) {
+    return null; // Hide main nav on login/signup/admin pages
   }
 
   const handleScrollClick = (e, sectionId) => {
@@ -76,7 +86,7 @@ function Navigation() {
             onClick={(e) => handleScrollClick(e, "home")}
             style={{
               ...navLinkStyle,
-              ...(isHomePage && (location.hash === "" || location.hash === "#home") ? activeNavLinkStyle : {})
+              ...(isHomePath && (location.hash === "" || location.hash === "#home") && !isStudentIdPage && !isMyDataPage ? activeNavLinkStyle : {})
             }}
           >
             Home
@@ -86,17 +96,44 @@ function Navigation() {
             onClick={(e) => handleScrollClick(e, "features")}
             style={{
               ...navLinkStyle,
-              ...(isHomePage && location.hash === "#features" ? activeNavLinkStyle : {})
+              ...(isHomePath && location.hash === "#features" && !isStudentIdPage && !isMyDataPage ? activeNavLinkStyle : {})
             }}
           >
             Features
           </a>
+          <Link
+            to="/student-id"
+            style={{
+              ...navLinkStyle,
+              textDecoration: "none",
+              ...(isStudentIdPage ? activeNavLinkStyle : {})
+            }}
+          >
+            Student ID
+          </Link>
+          <Link
+            to="/my-data"
+            style={{
+              ...navLinkStyle,
+              textDecoration: "none",
+              ...(isMyDataPage ? activeNavLinkStyle : {})
+            }}
+          >
+            My data
+          </Link>
+          <Link
+            to={isAdminLoggedIn() ? "/admin" : "/login"}
+            style={{ ...navLinkStyle, marginLeft: "auto", textDecoration: "none" }}
+          >
+            Admin
+          </Link>
           <a 
             href="#contact"
             onClick={(e) => handleScrollClick(e, "contact")}
             style={{
               ...navLinkStyle,
-              ...(isHomePage && location.hash === "#contact" ? activeNavLinkStyle : {})
+              textDecoration: "none",
+              ...(isHomePath && location.hash === "#contact" && !isStudentIdPage && !isMyDataPage ? activeNavLinkStyle : {})
             }}
           >
             Contact
@@ -129,10 +166,64 @@ function App() {
   );
 }
 
+function StudentIdPrompt({ onDismiss }) {
+  const [value, setValue] = React.useState("");
+  const [error, setError] = React.useState("");
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    const trimmed = value.trim();
+    setError("");
+    if (!trimmed) {
+      setError("Please enter a Student ID.");
+      return;
+    }
+    setStudentId(trimmed);
+    startSync();
+    onDismiss();
+  };
+
+  return (
+    <div style={overlayStyle}>
+      <div style={promptCardStyle}>
+        <h2 style={promptTitleStyle}>Create your Student ID</h2>
+        <p style={promptSubtitleStyle}>
+          Set a Student ID so your data syncs across devices (phone, laptop). Use the same ID on every device.
+        </p>
+        <form onSubmit={handleSave} style={promptFormStyle}>
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={`e.g. ${STUDENT_ID_CONFIG.placeholderExample} (max ${STUDENT_ID_CONFIG.maxLength} characters)`}
+            style={promptInputStyle}
+            autoFocus
+            maxLength={STUDENT_ID_CONFIG.maxLength}
+          />
+          {error && <p style={promptErrorStyle}>{error}</p>}
+          <div style={promptButtonsStyle}>
+            <button type="submit" style={promptPrimaryBtnStyle}>Save Student ID</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function AppContent() {
   const location = useLocation();
   const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
-  
+  const isAdminPage = location.pathname === "/admin";
+  const isGrainOrFlow = location.pathname === "/grain" || location.pathname === "/flow" ||
+    location.pathname.endsWith("/grain") || location.pathname.endsWith("/flow");
+  const [, setForceUpdate] = React.useState(0);
+
+  const showPrompt = isGrainOrFlow && !getStudentId();
+
+  const handleStudentIdDismiss = () => {
+    setForceUpdate((n) => n + 1);
+  };
+
   // Handle scroll to section on page load if hash is present
   React.useEffect(() => {
     if (location.pathname === "/" && location.hash) {
@@ -145,9 +236,10 @@ function AppContent() {
       }, 100);
     }
   }, [location.pathname, location.hash]);
-  
+
   return (
     <div style={appContainerStyle}>
+      {showPrompt && <StudentIdPrompt onDismiss={handleStudentIdDismiss} />}
       {!isAuthPage && (
         <header style={headerStyle}>
           <div style={headerContentStyle}>
@@ -167,6 +259,9 @@ function AppContent() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/contact-form" element={<Contact />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/my-data" element={<MyData />} />
+          <Route path="/student-id" element={<StudentId />} />
           <Route path="/grain" element={<GrainForm />} />
           <Route path="/flow" element={<FlowForm />} />
         </Routes>
@@ -175,6 +270,49 @@ function AppContent() {
     </div>
   );
 }
+
+const overlayStyle = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  background: "rgba(0,0,0,0.4)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 1000,
+  padding: "1rem",
+};
+const promptCardStyle = {
+  background: "#fff",
+  borderRadius: "8px",
+  boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+  padding: "1.5rem 2rem",
+  maxWidth: "420px",
+  width: "100%",
+};
+const promptTitleStyle = { margin: "0 0 0.5rem 0", fontSize: "1.35rem", color: "#2c3e50" };
+const promptSubtitleStyle = { margin: "0 0 1rem 0", fontSize: "0.9rem", color: "#6c757d", lineHeight: 1.4 };
+const promptFormStyle = { display: "flex", flexDirection: "column", gap: "0.5rem" };
+const promptInputStyle = {
+  padding: "0.6rem 0.75rem",
+  border: "1.5px solid #e5e7eb",
+  borderRadius: "6px",
+  fontSize: "1rem",
+};
+const promptErrorStyle = { margin: "0", fontSize: "0.875rem", color: "#dc3545" };
+const promptButtonsStyle = { display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" };
+const promptPrimaryBtnStyle = {
+  padding: "0.6rem 1rem",
+  background: "#8b6f47",
+  color: "#fff",
+  border: "none",
+  borderRadius: "6px",
+  fontWeight: 600,
+  cursor: "pointer",
+  fontSize: "0.9rem",
+};
 
 const appContainerStyle = {
   minHeight: "100vh",
@@ -219,7 +357,6 @@ const subtitleStyle = {
 
 const navStyle = {
   background: "#ffffff",
-  borderBottom: "1px solid #dee2e6",
   padding: "0",
   position: "sticky",
   top: "0",
