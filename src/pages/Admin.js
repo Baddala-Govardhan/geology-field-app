@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { remoteDB } from "../utils/database";
+import { remoteDB, localDB } from "../utils/database";
 import { isAdminLoggedIn, logoutAdmin } from "../utils/auth";
 
 function rowToCSV(row) {
@@ -31,6 +31,7 @@ function Admin() {
   const [flowDocs, setFlowDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [dataSource, setDataSource] = useState(null); // "remote" | "local"
 
   useEffect(() => {
     if (!isAdminLoggedIn()) {
@@ -43,14 +44,26 @@ function Admin() {
   const loadData = async () => {
     setLoading(true);
     setError(null);
+    setDataSource(null);
     try {
       const result = await remoteDB.allDocs({ include_docs: true });
       const docs = (result.rows || []).map((r) => r.doc).filter(Boolean);
       setGrainDocs(docs.filter((d) => d.type === "grain"));
       setFlowDocs(docs.filter((d) => d.type === "flow"));
+      setDataSource("remote");
     } catch (err) {
-      console.error(err);
-      setError("Failed to load data");
+      console.warn("Remote DB unavailable, loading from local:", err);
+      try {
+        const localResult = await localDB.allDocs({ include_docs: true });
+        const docs = (localResult.rows || []).map((r) => r.doc).filter(Boolean);
+        setGrainDocs(docs.filter((d) => d.type === "grain"));
+        setFlowDocs(docs.filter((d) => d.type === "flow"));
+        setDataSource("local");
+        setError(null);
+      } catch (localErr) {
+        console.error(localErr);
+        setError("Failed to load data from server or local storage.");
+      }
     } finally {
       setLoading(false);
     }
@@ -112,6 +125,11 @@ function Admin() {
 
         {loading && <p style={pStyle}>Loading data…</p>}
         {error && <p style={errorStyle}>{error}</p>}
+        {!loading && dataSource === "local" && (
+          <p style={localBannerStyle}>
+            Showing data from this device only (remote server unavailable). Connect to the server to see the full synced dataset.
+          </p>
+        )}
 
         {!loading && !error && (
           <>
@@ -248,5 +266,14 @@ const thStyle = { textAlign: "left", padding: "0.5rem", borderBottom: "2px solid
 const tdStyle = { padding: "0.5rem", borderBottom: "1px solid #eee" };
 const pStyle = { margin: "0.5rem 0", color: "#6c757d" };
 const errorStyle = { color: "#dc3545", margin: "0.5rem 0" };
+const localBannerStyle = {
+  margin: "0 2rem 1rem 2rem",
+  padding: "0.75rem 1rem",
+  background: "#fff3cd",
+  border: "1px solid #ffc107",
+  borderRadius: "6px",
+  color: "#856404",
+  fontSize: "0.875rem",
+};
 
 export default Admin;

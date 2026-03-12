@@ -2,7 +2,7 @@ const ADMIN_KEY = "geology_admin_logged_in";
 
 const getAdminCredentials = () => ({
   username: process.env.REACT_APP_ADMIN_USER || "admin",
-  password: process.env.REACT_APP_ADMIN_PASSWORD || "geology2024",
+  password: process.env.REACT_APP_ADMIN_PASSWORD || "admin",
 });
 
 export const isAdminLoggedIn = () => {
