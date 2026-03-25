@@ -1,5 +1,7 @@
 node_modules
 build
-.dockerignore
-Dockerfile
-npm-debug.log
+.git
+npm-debug.log*
+.env.local
+.env.*.local
+couchdb/data

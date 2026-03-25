@@ -1,29 +1,3 @@
-// import React from "react";
-// import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-// import GrainForm from "./GrainForm";
-// import FlowForm from "./FlowForm"; // Create this later
-
-// function App() {
-//   return (
-//     <Router>
-//       <div style={{ padding: "20px" }}>
-//         <h2>Geology Field Data App</h2>
-//         <nav style={{ marginBottom: "20px" }}>
-//           <Link to="/grain" style={{ marginRight: "15px" }}>Grain Size Form</Link>
-//           <Link to="/flow">Flow Measurement Form</Link>
-//         </nav>
-//         <Routes>
-//           <Route path="/grain" element={<GrainForm />} />
-//           <Route path="/flow" element={<FlowForm />} />
-//         </Routes>
-//       </div>
-//     </Router>
-//   );
-// }
-
-// export default App;
-
-
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation, Link } from "react-router-dom";
 import Home from "./pages/Home";

@@ -2,6 +2,8 @@
 
 Simple React-based field data collection UI backed by CouchDB, fully containerized with Docker.
 
+**Public / AWS deployment:** see [AWS_DEPLOY.md](./AWS_DEPLOY.md).
+
 ---
 
 ## Architecture (Docker-first)
@@ -88,9 +90,7 @@ This means:
 
 - **`couchdb` service**
   - Configured via environment variables in `docker-compose.yml`.
-  - Initialization script: `couchdb/init.sh`
-    - Waits for CouchDB to be ready.
-    - Creates the `geology-data` database if it does not already exist.
+  - On first start, the container command creates the `geology-data` database if needed.
 
 Both services share the default Docker network created by Compose, so `nginx` can reach CouchDB at the hostname `couchdb`.
 
