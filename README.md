@@ -2,8 +2,6 @@
 
 Simple React-based field data collection UI backed by CouchDB, fully containerized with Docker.
 
-**Public / AWS deployment:** see [AWS_DEPLOY.md](./AWS_DEPLOY.md).
-
 ---
 
 ## Architecture (Docker-first)
