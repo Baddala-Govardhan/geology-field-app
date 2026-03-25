@@ -64,6 +64,46 @@ docker compose down
 
 ---
 
+## Deployment (public server, e.g. AWS EC2)
+
+Use a Linux VM (Ubuntu) with Docker. The app will be available at **`http://YOUR_PUBLIC_IP:3000`**.
+
+1. **Create the server** — e.g. AWS EC2, Ubuntu 22.04, key pair downloaded.  
+   **Security group:** allow **TCP 22** (SSH, your IP) and **TCP 3000** (HTTP to the app; restrict if needed).
+
+2. **SSH in** (replace key name and IP):
+
+```bash
+chmod 400 your-key.pem
+ssh -i your-key.pem ubuntu@YOUR_PUBLIC_IP
+```
+
+3. **Install Docker** on the server:
+
+```bash
+sudo apt update && sudo apt install -y ca-certificates curl git
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER
+```
+
+Log out and SSH in again (or run `newgrp docker`).
+
+4. **Clone this repo and start** (replace with your Git URL if different):
+
+```bash
+git clone https://github.com/Baddala-Govardhan/geology-field-app.git
+cd geology-field-app
+docker compose up -d --build
+```
+
+5. **Open** `http://YOUR_PUBLIC_IP:3000` in a browser.
+
+**Updates:** `git pull` then `docker compose up -d --build`.
+
+**Before production use:** change default CouchDB credentials (`docker-compose.yml` / `nginx/nginx.conf`) and admin app login (`src/utils/auth.js` or build-time env vars). Prefer HTTPS (reverse proxy + certificate) and a domain if required.
+
+---
+
 ## Data persistence (CouchDB volume)
 
 CouchDB data is stored in a folder on your local machine via a bind-mounted Docker volume:
