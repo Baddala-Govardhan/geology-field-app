@@ -31,6 +31,6 @@ services:
       dockerfile: Dockerfile
     container_name: geology_frontend
     ports:
-      - "3000:80"
+      - "80:80"
     depends_on:
       - couchdb
