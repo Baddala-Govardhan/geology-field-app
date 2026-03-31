@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { getStudentId, getStudentIdClaimCode, registerAndSetStudentId, localDB, STUDENT_ID_CONFIG } from "../utils/database";
+import { getStudentId, registerAndSetStudentId, localDB, STUDENT_ID_CONFIG } from "../utils/database";
 
 function StudentId() {
   const [oldId, setOldId] = useState("");
   const [newIdWithMigration, setNewIdWithMigration] = useState("");
-  const [migrationClaimCode, setMigrationClaimCode] = useState("");
   const [newIdOnly, setNewIdOnly] = useState("");
-  const [newOnlyClaimCode, setNewOnlyClaimCode] = useState("");
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState("");
   const [migrating, setMigrating] = useState(false);
@@ -36,7 +34,7 @@ function StudentId() {
     }
     setMigrating(true);
     try {
-      const reg = await registerAndSetStudentId(newTrim, migrationClaimCode);
+      const reg = await registerAndSetStudentId(newTrim);
       if (!reg.ok) {
         setMessage(reg.error || "Could not save Student ID.");
         return;
@@ -54,11 +52,9 @@ function StudentId() {
         }
       }
       setSuccess(
-        `Student ID changed. ${updated} record(s) moved to your new ID.` +
-          (reg.isNewClaim && reg.claimCode ? ` Claim code: ${reg.claimCode}` : "")
+        `Student ID changed. ${updated} record(s) moved to your new ID.`
       );
       setNewIdWithMigration("");
-      setMigrationClaimCode("");
       setTimeout(() => setSuccess(""), 4000);
     } catch (err) {
       console.error(err);
@@ -77,23 +73,20 @@ function StudentId() {
       setMessage("Enter a New ID.");
       return;
     }
-    const reg = await registerAndSetStudentId(newTrim, newOnlyClaimCode);
+    const reg = await registerAndSetStudentId(newTrim);
     if (!reg.ok) {
       setMessage(reg.error || "Could not save Student ID.");
       return;
     }
     setSuccess(
-      "Student ID saved. You will not see data from your old ID." +
-        (reg.isNewClaim && reg.claimCode ? ` Claim code: ${reg.claimCode}` : "")
+      "Student ID saved. You will not see data from your old ID."
     );
     setNewIdOnly("");
-    setNewOnlyClaimCode("");
     setTimeout(() => setSuccess(""), 4000);
   };
 
   const currentId = getStudentId();
   const alreadySet = !!currentId;
-  const currentClaimCode = getStudentIdClaimCode();
 
   return (
     <div style={containerStyle}>
@@ -106,9 +99,6 @@ function StudentId() {
               <p style={alreadySetTitleStyle}>Student ID already set.</p>
               <p style={alreadySetTextStyle}>Your data will sync on all devices where you use this ID.</p>
               <p style={currentIdStyle}>Current ID: <strong>{currentId}</strong></p>
-              {currentClaimCode && (
-                <p style={currentIdStyle}>Claim code: <strong>{currentClaimCode}</strong></p>
-              )}
             </div>
 
             <p style={sectionLabelStyle}>Change ID and keep my data</p>
@@ -132,14 +122,6 @@ function StudentId() {
                 style={inputStyle}
                 maxLength={STUDENT_ID_CONFIG.maxLength}
               />
-              <label style={labelStyle}>Claim code (only if this new ID is already registered)</label>
-              <input
-                type="text"
-                value={migrationClaimCode}
-                onChange={(e) => setMigrationClaimCode(e.target.value)}
-                placeholder="Enter claim code (optional)"
-                style={inputStyle}
-              />
               <button type="submit" style={buttonStyle} disabled={migrating}>
                 {migrating ? "Updating…" : "Save and move my data to new ID"}
               </button>
@@ -156,14 +138,6 @@ function StudentId() {
                 placeholder={`e.g. ${STUDENT_ID_CONFIG.placeholderNewExample}`}
                 style={inputStyle}
                 maxLength={STUDENT_ID_CONFIG.maxLength}
-              />
-              <label style={labelStyle}>Claim code (only if this ID is already registered)</label>
-              <input
-                type="text"
-                value={newOnlyClaimCode}
-                onChange={(e) => setNewOnlyClaimCode(e.target.value)}
-                placeholder="Enter claim code (optional)"
-                style={inputStyle}
               />
               <button type="submit" style={buttonSecondaryStyle}>Save new ID only</button>
             </form>

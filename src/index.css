@@ -149,7 +149,7 @@ a:hover {
 /* Navigation Link Hover */
 nav a:hover {
   color: #111827 !important;
-  border-bottom-color: rgba(17, 24, 39, 0.3) !important;
+  border-bottom: none !important;
 }
 
 /* Feature Card Hover */

@@ -27,6 +27,22 @@ function Navigation() {
     return null; // Hide main nav on login/signup/admin pages
   }
 
+  const activeKey = (() => {
+    if (isStudentIdPage) return "student-id";
+    if (isMyDataPage) return "my-data";
+    if (!isHomePage) return null;
+    const hash = (location.hash || "").toLowerCase();
+    if (hash === "#features") return "features";
+    if (hash === "#contact") return "contact";
+    return "home";
+  })();
+
+  const linkStyleFor = (key) => ({
+    ...navLinkStyle,
+    textDecoration: "none",
+    ...(activeKey === key ? activeNavLinkStyle : {}),
+  });
+
   const handleScrollClick = (e, sectionId) => {
     e.preventDefault();
     // Detect basename dynamically
@@ -58,57 +74,39 @@ function Navigation() {
           <a 
             href="#home"
             onClick={(e) => handleScrollClick(e, "home")}
-            style={{
-              ...navLinkStyle,
-              ...(isHomePath && (location.hash === "" || location.hash === "#home") && !isStudentIdPage && !isMyDataPage ? activeNavLinkStyle : {})
-            }}
+            style={linkStyleFor("home")}
           >
             Home
           </a>
           <a 
             href="#features"
             onClick={(e) => handleScrollClick(e, "features")}
-            style={{
-              ...navLinkStyle,
-              ...(isHomePath && location.hash === "#features" && !isStudentIdPage && !isMyDataPage ? activeNavLinkStyle : {})
-            }}
+            style={linkStyleFor("features")}
           >
             Features
           </a>
           <Link
             to="/student-id"
-            style={{
-              ...navLinkStyle,
-              textDecoration: "none",
-              ...(isStudentIdPage ? activeNavLinkStyle : {})
-            }}
+            style={linkStyleFor("student-id")}
           >
             Student ID
           </Link>
           <Link
             to="/my-data"
-            style={{
-              ...navLinkStyle,
-              textDecoration: "none",
-              ...(isMyDataPage ? activeNavLinkStyle : {})
-            }}
+            style={linkStyleFor("my-data")}
           >
             My data
           </Link>
           <Link
             to={isAdminLoggedIn() ? "/admin" : "/login"}
-            style={{ ...navLinkStyle, marginLeft: "auto", textDecoration: "none" }}
+            style={{ ...linkStyleFor("admin"), marginLeft: "auto" }}
           >
             Admin
           </Link>
           <a 
             href="#contact"
             onClick={(e) => handleScrollClick(e, "contact")}
-            style={{
-              ...navLinkStyle,
-              textDecoration: "none",
-              ...(isHomePath && location.hash === "#contact" && !isStudentIdPage && !isMyDataPage ? activeNavLinkStyle : {})
-            }}
+            style={linkStyleFor("contact")}
           >
             Contact
           </a>
@@ -142,8 +140,6 @@ function App() {
 
 function StudentIdPrompt({ onDismiss }) {
   const [value, setValue] = React.useState("");
-  const [claimCode, setClaimCode] = React.useState("");
-  const [showClaimCode, setShowClaimCode] = React.useState(false);
   const [error, setError] = React.useState("");
 
   const handleSave = async (e) => {
@@ -154,14 +150,10 @@ function StudentIdPrompt({ onDismiss }) {
       setError("Please enter a Student ID.");
       return;
     }
-    const result = await registerAndSetStudentId(trimmed, showClaimCode ? claimCode : "");
+    const result = await registerAndSetStudentId(trimmed);
     if (!result.ok) {
       setError(result.error || "Could not save Student ID.");
       return;
-    }
-    if (result.isNewClaim && result.claimCode) {
-      // Keep it simple: show once so student can reuse on other devices.
-      window.alert(`Student ID registered.\n\nClaim code (save this): ${result.claimCode}\n\nUse this claim code if you set the same Student ID on another device.`);
     }
     onDismiss();
   };
@@ -183,23 +175,6 @@ function StudentIdPrompt({ onDismiss }) {
             autoFocus
             maxLength={STUDENT_ID_CONFIG.maxLength}
           />
-          <label style={promptCheckboxRowStyle}>
-            <input
-              type="checkbox"
-              checked={showClaimCode}
-              onChange={(e) => setShowClaimCode(e.target.checked)}
-            />
-            <span style={promptCheckboxTextStyle}>I already have a claim code (using this ID on another device)</span>
-          </label>
-          {showClaimCode && (
-            <input
-              type="text"
-              value={claimCode}
-              onChange={(e) => setClaimCode(e.target.value)}
-              placeholder="Enter claim code"
-              style={promptInputStyle}
-            />
-          )}
           {error && <p style={promptErrorStyle}>{error}</p>}
           <div style={promptButtonsStyle}>
             <button type="submit" style={promptPrimaryBtnStyle}>Save Student ID</button>
@@ -301,8 +276,6 @@ const promptInputStyle = {
   borderRadius: "6px",
   fontSize: "1rem",
 };
-const promptCheckboxRowStyle = { display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem" };
-const promptCheckboxTextStyle = { fontSize: "0.875rem", color: "#6c757d" };
 const promptErrorStyle = { margin: "0", fontSize: "0.875rem", color: "#dc3545" };
 const promptButtonsStyle = { display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" };
 const promptPrimaryBtnStyle = {
@@ -389,7 +362,7 @@ const navLinkStyle = {
   fontWeight: "500",
   fontSize: "0.9375rem",
   letterSpacing: "0",
-  borderBottom: "2px solid transparent",
+  borderBottom: "none",
   transition: "all 0.2s ease",
   cursor: "pointer",
   position: "relative",
@@ -397,7 +370,7 @@ const navLinkStyle = {
 
 const activeNavLinkStyle = {
   color: "#8b6f47",
-  borderBottomColor: "#8b6f47",
+  borderBottom: "2px solid #8b6f47",
   fontWeight: "600",
 };
 

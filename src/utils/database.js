@@ -7,10 +7,10 @@ export const STUDENT_ID_CONFIG = {
 };
 
 const STUDENT_ID_KEY = "geology_student_id";
-const STUDENT_ID_CLAIM_CODE_KEY = "geology_student_id_claim_code";
 const IP_FALLBACK_KEY = "geology_ip_id";
 const DEVICE_ID_KEY = "geology_author_id";
 const SKIP_STUDENT_ID_PROMPT_KEY = "geology_skip_student_id_prompt";
+const STUDENT_ID_MAX_DEVICES = 3;
 
 export function getStudentId() {
   const id = localStorage.getItem(STUDENT_ID_KEY);
@@ -23,20 +23,6 @@ export function setStudentId(id) {
     localStorage.setItem(STUDENT_ID_KEY, trimmed);
   } else {
     localStorage.removeItem(STUDENT_ID_KEY);
-  }
-}
-
-export function getStudentIdClaimCode() {
-  const code = localStorage.getItem(STUDENT_ID_CLAIM_CODE_KEY);
-  return code ? String(code).trim() : null;
-}
-
-export function setStudentIdClaimCode(code) {
-  const trimmed = (code || "").trim();
-  if (trimmed) {
-    localStorage.setItem(STUDENT_ID_CLAIM_CODE_KEY, trimmed);
-  } else {
-    localStorage.removeItem(STUDENT_ID_CLAIM_CODE_KEY);
   }
 }
 
@@ -98,31 +84,17 @@ function normalizeStudentId(input) {
   return (input || "").trim().slice(0, STUDENT_ID_CONFIG.maxLength);
 }
 
-function normalizeClaimCode(input) {
-  return (input || "").trim();
-}
-
-function generateClaimCode(length = 10) {
-  // Avoid confusing chars like O/0, I/1
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < length; i++) {
-    out += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return out;
-}
-
 function studentIdRegistryDocId(studentId) {
   return `student_id_registry:${studentId}`;
 }
 
 /**
- * Claims a Student ID in CouchDB so two different students can't use the same ID.
- * If the ID is already claimed, user must provide the correct claim code.
+ * Registers a Student ID in CouchDB and enforces a max-device limit per ID.
+ * This prevents two different students from accidentally using the same ID,
+ * while still allowing the same student to use the same ID across devices.
  */
-export async function registerAndSetStudentId(studentIdInput, claimCodeInput = "") {
+export async function registerAndSetStudentId(studentIdInput) {
   const studentId = normalizeStudentId(studentIdInput);
-  const claimCode = normalizeClaimCode(claimCodeInput);
 
   if (!studentId) {
     return { ok: false, error: "Please enter a Student ID." };
@@ -135,53 +107,77 @@ export async function registerAndSetStudentId(studentIdInput, claimCodeInput = "
   }
 
   const docId = studentIdRegistryDocId(studentId);
+  const deviceId = getDeviceId();
 
-  try {
-    const newClaimCode = claimCode || generateClaimCode();
-    const doc = {
-      _id: docId,
-      type: "student_id_registry",
-      studentId,
-      claimCode: newClaimCode,
-      createdAt: new Date().toISOString(),
-    };
-    await remoteDB.put(doc);
+  // Retry loop for conflict on update
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      // Try create first
+      const doc = {
+        _id: docId,
+        type: "student_id_registry",
+        studentId,
+        devices: [deviceId],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await remoteDB.put(doc);
 
-    setStudentId(studentId);
-    setStudentIdClaimCode(newClaimCode);
-    startSync();
+      setStudentId(studentId);
+      startSync();
+      return { ok: true, isNewRegistration: true, deviceCount: 1, maxDevices: STUDENT_ID_MAX_DEVICES };
+    } catch (err) {
+      if (err && (err.status === 409 || err.name === "conflict")) {
+        try {
+          const existing = await remoteDB.get(docId);
+          const devices = Array.isArray(existing.devices) ? existing.devices.map(String) : [];
+          const normalized = devices.filter(Boolean);
 
-    return { ok: true, claimCode: newClaimCode, isNewClaim: true };
-  } catch (err) {
-    // Conflict means doc already exists.
-    if (err && (err.status === 409 || err.name === "conflict")) {
-      try {
-        const existing = await remoteDB.get(docId);
-        const existingCode = existing?.claimCode ? String(existing.claimCode).trim() : "";
-        if (!existingCode) {
-          return { ok: false, error: "This Student ID is already registered." };
+          if (normalized.includes(deviceId)) {
+            // This device already counted; allow.
+            setStudentId(studentId);
+            startSync();
+            return { ok: true, isNewRegistration: false, deviceCount: normalized.length, maxDevices: STUDENT_ID_MAX_DEVICES };
+          }
+
+          if (normalized.length >= STUDENT_ID_MAX_DEVICES) {
+            return {
+              ok: false,
+              error: `This Student ID is already registered on ${STUDENT_ID_MAX_DEVICES} devices. Please use a different Student ID.`,
+            };
+          }
+
+          const updated = {
+            ...existing,
+            devices: [...normalized, deviceId],
+            updatedAt: new Date().toISOString(),
+          };
+          await remoteDB.put(updated);
+
+          setStudentId(studentId);
+          startSync();
+          return {
+            ok: true,
+            isNewRegistration: false,
+            deviceCount: updated.devices.length,
+            maxDevices: STUDENT_ID_MAX_DEVICES,
+          };
+        } catch (updateErr) {
+          // If we collided updating, retry.
+          if (updateErr && (updateErr.status === 409 || updateErr.name === "conflict")) {
+            continue;
+          }
+          console.error(updateErr);
+          return { ok: false, error: "Failed to register Student ID. Please try again." };
         }
-        if (!claimCode) {
-          return { ok: false, error: "This Student ID is already registered. Enter the claim code to use it on this device." };
-        }
-        if (claimCode !== existingCode) {
-          return { ok: false, error: "Incorrect claim code for this Student ID." };
-        }
-
-        setStudentId(studentId);
-        setStudentIdClaimCode(existingCode);
-        startSync();
-
-        return { ok: true, claimCode: existingCode, isNewClaim: false };
-      } catch (getErr) {
-        console.error(getErr);
-        return { ok: false, error: "This Student ID is already registered." };
       }
-    }
 
-    console.error(err);
-    return { ok: false, error: "Failed to register Student ID. Please try again." };
+      console.error(err);
+      return { ok: false, error: "Failed to register Student ID. Please try again." };
+    }
   }
+
+  return { ok: false, error: "Failed to register Student ID. Please try again." };
 }
 
 // Sync handler
