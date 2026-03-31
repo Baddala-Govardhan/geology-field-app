@@ -11,7 +11,7 @@ import GrainForm from "./GrainForm";
 import FlowForm from "./FlowForm";
 import SyncStatus from "./components/SyncStatus";
 import { isAdminLoggedIn } from "./utils/auth";
-import { getStudentId, setStudentId, startSync, STUDENT_ID_CONFIG } from "./utils/database";
+import { getStudentId, registerAndSetStudentId, STUDENT_ID_CONFIG } from "./utils/database";
 
 function Navigation() {
   const location = useLocation();
@@ -142,9 +142,11 @@ function App() {
 
 function StudentIdPrompt({ onDismiss }) {
   const [value, setValue] = React.useState("");
+  const [claimCode, setClaimCode] = React.useState("");
+  const [showClaimCode, setShowClaimCode] = React.useState(false);
   const [error, setError] = React.useState("");
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const trimmed = value.trim();
     setError("");
@@ -152,8 +154,15 @@ function StudentIdPrompt({ onDismiss }) {
       setError("Please enter a Student ID.");
       return;
     }
-    setStudentId(trimmed);
-    startSync();
+    const result = await registerAndSetStudentId(trimmed, showClaimCode ? claimCode : "");
+    if (!result.ok) {
+      setError(result.error || "Could not save Student ID.");
+      return;
+    }
+    if (result.isNewClaim && result.claimCode) {
+      // Keep it simple: show once so student can reuse on other devices.
+      window.alert(`Student ID registered.\n\nClaim code (save this): ${result.claimCode}\n\nUse this claim code if you set the same Student ID on another device.`);
+    }
     onDismiss();
   };
 
@@ -174,6 +183,23 @@ function StudentIdPrompt({ onDismiss }) {
             autoFocus
             maxLength={STUDENT_ID_CONFIG.maxLength}
           />
+          <label style={promptCheckboxRowStyle}>
+            <input
+              type="checkbox"
+              checked={showClaimCode}
+              onChange={(e) => setShowClaimCode(e.target.checked)}
+            />
+            <span style={promptCheckboxTextStyle}>I already have a claim code (using this ID on another device)</span>
+          </label>
+          {showClaimCode && (
+            <input
+              type="text"
+              value={claimCode}
+              onChange={(e) => setClaimCode(e.target.value)}
+              placeholder="Enter claim code"
+              style={promptInputStyle}
+            />
+          )}
           {error && <p style={promptErrorStyle}>{error}</p>}
           <div style={promptButtonsStyle}>
             <button type="submit" style={promptPrimaryBtnStyle}>Save Student ID</button>
@@ -275,6 +301,8 @@ const promptInputStyle = {
   borderRadius: "6px",
   fontSize: "1rem",
 };
+const promptCheckboxRowStyle = { display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem" };
+const promptCheckboxTextStyle = { fontSize: "0.875rem", color: "#6c757d" };
 const promptErrorStyle = { margin: "0", fontSize: "0.875rem", color: "#dc3545" };
 const promptButtonsStyle = { display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" };
 const promptPrimaryBtnStyle = {

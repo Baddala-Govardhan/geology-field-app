@@ -7,6 +7,7 @@ export const STUDENT_ID_CONFIG = {
 };
 
 const STUDENT_ID_KEY = "geology_student_id";
+const STUDENT_ID_CLAIM_CODE_KEY = "geology_student_id_claim_code";
 const IP_FALLBACK_KEY = "geology_ip_id";
 const DEVICE_ID_KEY = "geology_author_id";
 const SKIP_STUDENT_ID_PROMPT_KEY = "geology_skip_student_id_prompt";
@@ -22,6 +23,20 @@ export function setStudentId(id) {
     localStorage.setItem(STUDENT_ID_KEY, trimmed);
   } else {
     localStorage.removeItem(STUDENT_ID_KEY);
+  }
+}
+
+export function getStudentIdClaimCode() {
+  const code = localStorage.getItem(STUDENT_ID_CLAIM_CODE_KEY);
+  return code ? String(code).trim() : null;
+}
+
+export function setStudentIdClaimCode(code) {
+  const trimmed = (code || "").trim();
+  if (trimmed) {
+    localStorage.setItem(STUDENT_ID_CLAIM_CODE_KEY, trimmed);
+  } else {
+    localStorage.removeItem(STUDENT_ID_CLAIM_CODE_KEY);
   }
 }
 
@@ -78,6 +93,96 @@ const getCouchDBUrl = () => {
 export const remoteDB = new PouchDB(getCouchDBUrl(), {
   skip_setup: true,
 });
+
+function normalizeStudentId(input) {
+  return (input || "").trim().slice(0, STUDENT_ID_CONFIG.maxLength);
+}
+
+function normalizeClaimCode(input) {
+  return (input || "").trim();
+}
+
+function generateClaimCode(length = 10) {
+  // Avoid confusing chars like O/0, I/1
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < length; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
+
+function studentIdRegistryDocId(studentId) {
+  return `student_id_registry:${studentId}`;
+}
+
+/**
+ * Claims a Student ID in CouchDB so two different students can't use the same ID.
+ * If the ID is already claimed, user must provide the correct claim code.
+ */
+export async function registerAndSetStudentId(studentIdInput, claimCodeInput = "") {
+  const studentId = normalizeStudentId(studentIdInput);
+  const claimCode = normalizeClaimCode(claimCodeInput);
+
+  if (!studentId) {
+    return { ok: false, error: "Please enter a Student ID." };
+  }
+
+  // Must be able to check CouchDB to prevent collisions.
+  const canConnect = await checkCouchDBConnection();
+  if (!canConnect) {
+    return { ok: false, error: "Connect to the server to set your Student ID (cannot verify uniqueness while offline)." };
+  }
+
+  const docId = studentIdRegistryDocId(studentId);
+
+  try {
+    const newClaimCode = claimCode || generateClaimCode();
+    const doc = {
+      _id: docId,
+      type: "student_id_registry",
+      studentId,
+      claimCode: newClaimCode,
+      createdAt: new Date().toISOString(),
+    };
+    await remoteDB.put(doc);
+
+    setStudentId(studentId);
+    setStudentIdClaimCode(newClaimCode);
+    startSync();
+
+    return { ok: true, claimCode: newClaimCode, isNewClaim: true };
+  } catch (err) {
+    // Conflict means doc already exists.
+    if (err && (err.status === 409 || err.name === "conflict")) {
+      try {
+        const existing = await remoteDB.get(docId);
+        const existingCode = existing?.claimCode ? String(existing.claimCode).trim() : "";
+        if (!existingCode) {
+          return { ok: false, error: "This Student ID is already registered." };
+        }
+        if (!claimCode) {
+          return { ok: false, error: "This Student ID is already registered. Enter the claim code to use it on this device." };
+        }
+        if (claimCode !== existingCode) {
+          return { ok: false, error: "Incorrect claim code for this Student ID." };
+        }
+
+        setStudentId(studentId);
+        setStudentIdClaimCode(existingCode);
+        startSync();
+
+        return { ok: true, claimCode: existingCode, isNewClaim: false };
+      } catch (getErr) {
+        console.error(getErr);
+        return { ok: false, error: "This Student ID is already registered." };
+      }
+    }
+
+    console.error(err);
+    return { ok: false, error: "Failed to register Student ID. Please try again." };
+  }
+}
 
 // Sync handler
 let syncHandler = null;
