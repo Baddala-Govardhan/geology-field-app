@@ -7,14 +7,12 @@ Simple React-based field data collection UI backed by CouchDB, fully containeriz
 ## Architecture (Docker-first)
 
 - **frontend (Nginx + React)**:
-  - Builds the React app inside the image.
-  - Serves the static UI via Nginx.
-  - Proxies all requests under `/couchdb/` to the CouchDB container.
+  - Serves the React app.
+  - **`/couchdb/geology-data/`** — app sync only; nginx injects a **non-admin** CouchDB user (`COUCHDB_APP_B64`).
+  - **Other `/couchdb/*`** (e.g. **`/couchdb/_utils/`** Fauxton) — **HTTP Basic** (nginx `htpasswd` = CouchDB admin), then Fauxton may ask for CouchDB login with the **same** credentials.
 - **couchdb**:
-  - Official `couchdb:latest` image.
-  - Database `geology-data` auto-created on startup.
-  - Credentials: username `app`, password `app`.
-  - Data persisted to a host folder via a Docker volume.
+  - Creates **`geology-data`**, **`_users`**, app user, and **`geology-data/_security`** (members = app user).
+  - Admin credentials: **`COUCHDB_ADMIN_USER`** / **`COUCHDB_ADMIN_PASSWORD`** (default `app` / `app` — change in production via `.env`).
 
 All services are started and wired together by `docker-compose.yml`. No host-level Nginx or extra install scripts are required.
 
@@ -43,12 +41,10 @@ This will:
 - Start the `couchdb` container.
 - Start the `frontend` (Nginx) container.
 
-Once the containers are up:
+Once the containers are up (default host port **80**):
 
-- **Frontend UI**: `http://localhost:3000`
-- **CouchDB admin (Fauxton)**: `http://localhost:3000/couchdb/_utils`
-  - Username: `app`
-  - Password: `app`
+- **App:** `http://localhost/`
+- **Fauxton (admin, login required):** `http://localhost/couchdb/_utils/` — same path on production: **`http://fielddb.roualdes.us/couchdb/_utils/`**. Browser prompts for **HTTP Basic**, then Fauxton login (use **CouchDB admin** user/password from **`.env`**).
 
 To run in the background:
 
