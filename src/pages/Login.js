@@ -251,19 +251,6 @@ const footerTextStyle = {
   textAlign: "center",
 };
 
-const footerParagraphStyle = {
-  margin: "0 0 1rem 0",
-  color: "#666666",
-  fontSize: "0.9375rem",
-};
-
-const linkStyle = {
-  color: "#000000",
-  textDecoration: "none",
-  fontWeight: "600",
-  transition: "all 0.2s ease",
-};
-
 const backLinkStyle = {
   color: "#666666",
   textDecoration: "none",

@@ -1,8 +1,3 @@
-/**
- * GPS utility for collecting location data
- * Automatically gets GPS coordinates when available (phones, devices with GPS)
- * Falls back to manual entry for devices without GPS
- */
 export const getGPSLocation = () => {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
@@ -18,9 +13,9 @@ export const getGPSLocation = () => {
 
     // Clear any cached location by setting maximumAge to 0
     const options = {
-      enableHighAccuracy: true,  // Force GPS, not just network location
-      timeout: 30000,  // 30 seconds timeout for better GPS lock
-      maximumAge: 0,  // Never use cached location - always get fresh GPS
+      enableHighAccuracy: true,  
+      timeout: 30000, 
+      maximumAge: 0, 
     };
 
     console.log("Requesting GPS location with high accuracy...");

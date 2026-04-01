@@ -1,18 +1,15 @@
 FROM node:18 AS builder
 WORKDIR /app
 
-# Install dependencies first for better Docker layer caching
 COPY package*.json ./
 RUN npm install
 
-# Copy the rest of the app source and build
 COPY . .
-# Override homepage for Docker to serve at root path (/)
-# PUBLIC_URL=/ tells Create React App to use root path
-RUN PUBLIC_URL=/ npm run build
+ARG PUBLIC_URL=/
+ENV PUBLIC_URL=$PUBLIC_URL
+RUN npm run build
 
 FROM nginx:alpine
 
-# Serve the app at the root path (/)
 COPY --from=builder /app/build /usr/share/nginx/html
-COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx/nginx.conf /etc/nginx/templates/default.conf.template

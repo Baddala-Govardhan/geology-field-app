@@ -182,7 +182,6 @@ export async function registerAndSetStudentId(studentIdInput) {
 
 // Sync handler
 let syncHandler = null;
-let isOnline = navigator.onLine;
 let isConnectedToCouchDB = false;
 
 // Check actual connectivity to CouchDB
@@ -206,23 +205,9 @@ export const initDatabase = async () => {
     isConnectedToCouchDB = true;
   } catch (err) {
     if (err.status === 404) {
-      // Database doesn't exist, create it
-      try {
-        const createUrl = getCouchDBUrl();
-        await fetch(createUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Basic " + btoa("app:app")
-          }
-        });
-        console.log("Created geology-data database in CouchDB");
-        isConnectedToCouchDB = true;
-      } catch (createErr) {
-        console.error("Error creating CouchDB database:", createErr);
-        console.log("Working offline - data will be saved locally and synced when online");
-        isConnectedToCouchDB = false;
-      }
+      // DB must be created by CouchDB init (docker-compose); client cannot use admin creds here
+      console.warn("Remote database not found — ensure CouchDB init created geology-data. Working offline until it exists.");
+      isConnectedToCouchDB = false;
     } else {
       console.error("Error checking CouchDB:", err);
       console.log("Working offline - data will be saved locally and synced when online");
@@ -359,7 +344,6 @@ export const checkOnlineStatus = () => {
 export const setupOnlineOfflineListeners = () => {
   const handleOnline = async () => {
     console.log("Internet connection detected - checking CouchDB connectivity");
-    isOnline = true;
     
     // Verify we can actually reach CouchDB
     const canConnect = await checkCouchDBConnection();
@@ -375,7 +359,6 @@ export const setupOnlineOfflineListeners = () => {
 
   const handleOffline = () => {
     console.log("Internet connection lost - working offline");
-    isOnline = false;
     isConnectedToCouchDB = false;
     updateSyncStatus("offline");
   };

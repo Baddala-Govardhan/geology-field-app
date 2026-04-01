@@ -12,6 +12,7 @@ import FlowForm from "./FlowForm";
 import SyncStatus from "./components/SyncStatus";
 import { isAdminLoggedIn } from "./utils/auth";
 import { getStudentId, registerAndSetStudentId, STUDENT_ID_CONFIG } from "./utils/database";
+import { getRouterBasename } from "./utils/publicUrl";
 
 function Navigation() {
   const location = useLocation();
@@ -20,7 +21,8 @@ function Navigation() {
   const isAdminPage = path === "/admin";
   const isMyDataPage = path === "/my-data" || path.endsWith("/my-data") || path.includes("my-data");
   const isStudentIdPage = path === "/student-id" || path.endsWith("/student-id") || path.includes("student-id");
-  const isHomePath = path === "/" || path === "" || path === "/geology-field-app" || path === "/geology-field-app/";
+  // Pathnames from React Router are already relative to basename (no /geology-field-app prefix)
+  const isHomePath = path === "/" || path === "";
   const isHomePage = isHomePath && !isStudentIdPage && !isMyDataPage;
 
   if (isAuthPage || isAdminPage) {
@@ -45,25 +47,17 @@ function Navigation() {
 
   const handleScrollClick = (e, sectionId) => {
     e.preventDefault();
-    // Detect basename dynamically
-    const basename = window.location.pathname.startsWith('/geology-field-app') 
-      ? '/geology-field-app' 
-      : '';
-    
+    const basename = getRouterBasename();
+    const homePath = basename ? `${basename}/` : "/";
+
     if (isHomePage) {
       const element = document.getElementById(sectionId);
       if (element) {
-        // Ensure we stay in the geology app path
-        const currentPath = window.location.pathname;
-        // Make sure path includes basename
-        const basePath = currentPath.startsWith(basename) ? currentPath : basename;
-        const newUrl = basePath + `#${sectionId}`;
-        window.history.pushState(null, "", newUrl);
+        window.history.pushState(null, "", `${window.location.pathname}#${sectionId}`);
         element.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     } else {
-      // If not on home page, navigate to home first, then scroll
-      window.location.href = `${basename}/#${sectionId}`;
+      window.location.href = `${homePath}#${sectionId}`;
     }
   };
   
@@ -117,20 +111,8 @@ function Navigation() {
 }
 
 function App() {
-  // Detect if running on GitHub Pages or Docker/local
-  const getBasename = () => {
-    if (typeof window !== 'undefined') {
-      const path = window.location.pathname;
-      if (path.startsWith('/geology-field-app')) {
-        return '/geology-field-app';
-      }
-    }
-    // For Docker/local, serve at root
-    return '';
-  };
-  
-  const basename = getBasename();
-  
+  const basename = getRouterBasename();
+
   return (
     <Router basename={basename}>
       <AppContent />
@@ -188,7 +170,6 @@ function StudentIdPrompt({ onDismiss }) {
 function AppContent() {
   const location = useLocation();
   const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
-  const isAdminPage = location.pathname === "/admin";
   const isGrainOrFlow = location.pathname === "/grain" || location.pathname === "/flow" ||
     location.pathname.endsWith("/grain") || location.pathname.endsWith("/flow");
   const [, setForceUpdate] = React.useState(0);

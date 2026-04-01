@@ -314,7 +314,7 @@ function GrainForm() {
               GPS Coordinates <span style={requiredStyle}>*</span>
             </label>
             <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.8125rem", color: "#6b7280", fontStyle: "italic" }}>
-              📍 For accurate GPS: Allow location permission when prompted. Use HTTPS or mobile device for best results.
+              For accurate GPS: Allow location permission when prompted. Use HTTPS or mobile device for best results.
             </p>
             {gpsError && (
               <div style={errorStyle}>
