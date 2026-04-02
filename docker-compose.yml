@@ -34,6 +34,11 @@ services:
     environment:
       # Production default — override in .env for staging (e.g. localhost) if needed
       NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-fielddb.roualdes.us}
+      # Base64 of COUCHDB_USER:COUCHDB_PASSWORD — nginx injects for /couchdb/ sync (must match CouchDB)
+      COUCHDB_APP_B64: ${COUCHDB_APP_B64:-YXBwOmFwcA==}
+      # Browser login for /couchdb/_utils/ (defaults match COUCHDB_USER / COUCHDB_PASSWORD: app / app)
+      FAUXTON_BASIC_USER: ${FAUXTON_BASIC_USER:-app}
+      FAUXTON_BASIC_PASSWORD: ${FAUXTON_BASIC_PASSWORD:-app}
     ports:
       - "${FRONTEND_PORT:-80}:80"
     depends_on:

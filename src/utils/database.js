@@ -59,7 +59,7 @@ export async function initIpFallback() {
     if (ip) {
       const id = "ip_" + ip;
       localStorage.setItem(IP_FALLBACK_KEY, id);
-      startSync();
+      if (isConnectedToCouchDB) startSync();
     }
   } catch (e) {
     console.warn("Could not get IP for fallback ID:", e);
@@ -75,50 +75,11 @@ const getCouchDBUrl = () => {
   return `${protocol}//${hostname}${port ? `:${port}` : ''}/couchdb/geology-data`;
 };
 
-function getCouchdbRootUrl() {
-  return getCouchDBUrl().replace(/\/?geology-data\/?$/, "");
-}
+// Nginx injects Basic auth for /couchdb/ — browser does not send credentials.
+export const remoteDB = new PouchDB(getCouchDBUrl(), { skip_setup: true });
 
-/** Same-origin CouchDB session cookie (from Fauxton login) + include on all requests. */
-function pouchFetch(url, opts) {
-  return fetch(url, { ...opts, credentials: "include" });
-}
-
-function makeRemoteDB() {
-  return new PouchDB(getCouchDBUrl(), {
-    skip_setup: true,
-    fetch: pouchFetch,
-  });
-}
-
-/** True if CouchDB accepts the current browser session (Fauxton login). */
-export async function verifyCouchDbAccess() {
-  try {
-    await remoteDB.info();
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-// Reassigned after login/logout so importers see the current remote (live binding).
-export let remoteDB = makeRemoteDB();
-
-// Sync handler — declared before rebuildRemoteDB references it
 let syncHandler = null;
 let isConnectedToCouchDB = false;
-
-export function rebuildRemoteDB() {
-  if (syncHandler) {
-    try {
-      syncHandler.cancel();
-    } catch (e) {
-      /* ignore */
-    }
-    syncHandler = null;
-  }
-  remoteDB = makeRemoteDB();
-}
 
 function normalizeStudentId(input) {
   return (input || "").trim().slice(0, STUDENT_ID_CONFIG.maxLength);
@@ -240,9 +201,13 @@ export const initDatabase = async () => {
     console.log("Remote DB ready");
     isConnectedToCouchDB = true;
   } catch (err) {
-    if (err.status === 404) {
+    const st = err && err.status;
+    if (st === 404) {
       // DB must be created by CouchDB init (docker-compose); client cannot use admin creds here
       console.warn("Remote database not found — ensure CouchDB init created geology-data. Working offline until it exists.");
+      isConnectedToCouchDB = false;
+    } else if (st === 401 || st === 403) {
+      console.warn("CouchDB returned 401/403 — check COUCHDB_APP_B64 matches COUCHDB_USER:COUCHDB_PASSWORD in .env.");
       isConnectedToCouchDB = false;
     } else {
       console.error("Error checking CouchDB:", err);
@@ -262,7 +227,6 @@ export const initDatabase = async () => {
       };
       const res = await fetch(baseUrl + "/_design/filters", {
         method: "GET",
-        credentials: "include",
         headers: { Accept: "application/json" },
       });
       if (res.ok) {
@@ -271,7 +235,6 @@ export const initDatabase = async () => {
       }
       await fetch(baseUrl + "/_design/filters", {
         method: "PUT",
-        credentials: "include",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify(designDoc),
       });
@@ -280,7 +243,11 @@ export const initDatabase = async () => {
     }
   }
 
-  startSync();
+  if (isConnectedToCouchDB) {
+    startSync();
+  } else {
+    updateSyncStatus(navigator.onLine ? "paused" : "offline");
+  }
 };
 
 // Start bidirectional sync
@@ -345,14 +312,19 @@ export const startSync = () => {
       updateSyncStatus("syncing");
     })
     .on("error", (err) => {
-      // Don't show errors for offline scenarios - this is expected
-      if (err.status !== 0 && err.status !== undefined && err.status !== 404) {
-        console.error("Sync error:", err);
-        updateSyncStatus("error");
-      } else {
-        console.log("Offline - sync will resume when connection is restored");
+      const st = err && err.status;
+      // Offline / unknown host — not a "bug" state
+      if (st === 0 || st === undefined || st === 404) {
+        console.log("Offline or unreachable — sync will retry when possible");
         updateSyncStatus("offline");
+        return;
       }
+      if (st === 401 || st === 403) {
+        updateSyncStatus("paused");
+        return;
+      }
+      console.error("Sync error:", err);
+      updateSyncStatus("error");
     });
 
   return syncHandler;
@@ -372,22 +344,6 @@ const updateSyncStatus = (status) => {
   syncStatusCallbacks.forEach(cb => cb(status));
 };
 
-/** End CouchDB session cookie and stop syncing (Fauxton login required again). */
-export async function disconnectCouchSession() {
-  try {
-    await fetch(`${getCouchdbRootUrl()}/_session`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-  } catch (e) {
-    /* ignore */
-  }
-  rebuildRemoteDB();
-  isConnectedToCouchDB = false;
-  updateSyncStatus("offline");
-}
-
-/** After Fauxton login, start remote checks and sync. */
 export async function bootstrapIfSessionPresent() {
   await initDatabase();
   if (!getStudentId()) {

@@ -14,5 +14,9 @@ RUN npm run build
 
 FROM nginx:alpine
 
+RUN apk add --no-cache apache2-utils
+
 COPY --from=builder /app/build /usr/share/nginx/html
 COPY nginx/nginx.conf /etc/nginx/templates/default.conf.template
+COPY nginx/98-fauxton-htpasswd.sh /docker-entrypoint.d/98-fauxton-htpasswd.sh
+RUN chmod +x /docker-entrypoint.d/98-fauxton-htpasswd.sh

@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation, Link, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, Link } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -16,16 +16,13 @@ import {
   registerAndSetStudentId,
   STUDENT_ID_CONFIG,
   bootstrapIfSessionPresent,
-  verifyCouchDbAccess,
-  disconnectCouchSession,
 } from "./utils/database";
-import CouchLogin from "./pages/CouchLogin";
 import { getRouterBasename } from "./utils/publicUrl";
 
 function Navigation() {
   const location = useLocation();
   const path = (location.pathname || "").toLowerCase();
-  const isAuthPage = path === "/login" || path === "/signup" || path === "/couchdb-login";
+  const isAuthPage = path === "/login" || path === "/signup";
   const isAdminPage = path === "/admin";
   const isMyDataPage = path === "/my-data" || path.endsWith("/my-data") || path.includes("my-data");
   const isStudentIdPage = path === "/student-id" || path.endsWith("/student-id") || path.includes("student-id");
@@ -124,7 +121,6 @@ function App() {
   return (
     <Router basename={basename}>
       <Routes>
-        <Route path="/couchdb-login" element={<CouchLogin />} />
         <Route path="*" element={<MainShell />} />
       </Routes>
     </Router>
@@ -132,32 +128,9 @@ function App() {
 }
 
 function MainShell() {
-  const [couchReady, setCouchReady] = React.useState(null);
-
   React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const ok = await verifyCouchDbAccess();
-      if (cancelled) return;
-      setCouchReady(ok);
-      if (ok) await bootstrapIfSessionPresent();
-    })();
-    return () => {
-      cancelled = true;
-    };
+    bootstrapIfSessionPresent();
   }, []);
-
-  if (couchReady === null) {
-    return (
-      <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280", fontSize: "0.9375rem" }}>
-        Checking CouchDB session…
-      </div>
-    );
-  }
-
-  if (!couchReady) {
-    return <Navigate to="/couchdb-login" replace />;
-  }
 
   return <AppContent />;
 }
@@ -210,7 +183,6 @@ function StudentIdPrompt({ onDismiss }) {
 }
 
 function AppContent() {
-  const navigate = useNavigate();
   const location = useLocation();
   const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
   const isGrainOrFlow = location.pathname === "/grain" || location.pathname === "/flow" ||
@@ -274,16 +246,9 @@ function AppContent() {
           Build: {process.env.REACT_APP_BUILD_REF || "dev"}
         </span>
         <span style={{ marginLeft: "1rem", opacity: 0.85 }}>·</span>
-        <button
-          type="button"
-          onClick={async () => {
-            await disconnectCouchSession();
-            navigate("/couchdb-login", { replace: true });
-          }}
-          style={disconnectBtnStyle}
-        >
-          Log out of CouchDB
-        </button>
+        <a href="/couchdb/_utils/" target="_blank" rel="noopener noreferrer" style={footerFauxtonLinkStyle}>
+          Fauxton (instructor)
+        </a>
       </footer>
     </div>
   );
@@ -432,15 +397,9 @@ const deployFooterStyle = {
   borderTop: "1px solid #f3f4f6",
 };
 
-const disconnectBtnStyle = {
-  marginLeft: "0.75rem",
-  padding: "0.2rem 0.5rem",
+const footerFauxtonLinkStyle = {
   fontSize: "0.7rem",
   color: "#6b7280",
-  background: "transparent",
-  border: "1px solid #e5e7eb",
-  borderRadius: "4px",
-  cursor: "pointer",
 };
 
 // Add hover effect via inline style on component
