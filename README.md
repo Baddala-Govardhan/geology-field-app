@@ -193,10 +193,58 @@ If you used `FRONTEND_PORT=8080`, use `http://YOUR_PUBLIC_IP:8080/` instead.
 
 ### Step 9 — HTTPS (recommended for production)
 
-- **HTTPS** encrypts traffic and allows the **service worker** (offline reload after install) to register on a **public HTTPS** origin.  
-- Typical approach: put **Caddy** or **Nginx** on the host with **Let’s Encrypt**, or use a **reverse proxy** (e.g. Cloudflare, AWS ALB) in front of the VM.  
-- That layer terminates TLS on **443** and forwards HTTP to **`localhost:80`** (or your `FRONTEND_PORT`).  
-- Detailed TLS setup depends on your university/cloud policy; this repo ships HTTP on port 80 inside Compose by default.
+You do **not** change the React app or Docker image to “turn on” HTTPS. The **Compose stack keeps serving plain HTTP** on the host port you map (e.g. **`localhost:80`**). You add **TLS in front** of that: something listens on **443**, holds a certificate, and **reverse-proxies** to the Docker frontend.
+
+**Why bother**
+
+- **HTTPS** encrypts traffic between browsers and your server.  
+- Browsers only treat **`https://`** (and `http://localhost`) as a **secure context** for **service workers** on a real domain. That makes **offline reload / reopen the same URL** much more reliable after one online visit (see **Offline (field use)** above).
+
+**Firewall**
+
+- Open **TCP 443** to the internet (in addition to **80** if you still use HTTP redirects).
+
+**Set your domain in `.env`**
+
+- Set **`NGINX_SERVER_NAME`** to your public hostname (e.g. `fielddb.example.edu`) so the nginx `server_name` inside the container matches how users reach the site.
+
+---
+
+#### Option A — Caddy on the host (simple, automatic Let’s Encrypt)
+
+1. Point DNS (**A record**) for your hostname to the VM’s public IP.  
+2. Install [Caddy](https://caddyserver.com/docs/install) on the **host** (not inside this repo’s containers).  
+3. Create a `Caddyfile` (replace the domain and backend port to match your setup):
+
+```text
+fielddb.example.edu {
+    reverse_proxy localhost:80
+}
+```
+
+If **`FRONTEND_PORT=8080`** in `.env`, use `localhost:8080` instead of `80`.
+
+4. Run Caddy. It obtains and renews certificates; HTTPS terminates at Caddy, which forwards to Docker.
+
+---
+
+#### Option B — Cloudflare (or similar) in front
+
+- Put the domain behind **Cloudflare** (or another CDN) with **proxy** enabled.  
+- Enable **SSL/TLS** in the dashboard. **“Full (strict)”** is best if your origin also has a valid certificate; **“Flexible”** only encrypts browser→Cloudflare (weaker).  
+- Origin should still be reachable on the port Docker publishes (often **80**). Details depend on your provider.
+
+---
+
+#### Option C — Nginx or Apache + Certbot on the host
+
+- Install **nginx** (or Apache) and **Certbot** on the VM.  
+- Configure **TLS on 443** and `proxy_pass` (or equivalent) to **`http://127.0.0.1:80`** (or your **`FRONTEND_PORT`**).  
+- Let Certbot manage **Let’s Encrypt** certificates.
+
+---
+
+**After HTTPS works**, give students the **`https://your.domain/`** URL. They should still **open the app once while online** on each device so the service worker can install.
 
 ### Step 10 — Updating the app after code changes
 
