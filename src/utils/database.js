@@ -11,6 +11,8 @@ const IP_FALLBACK_KEY = "geology_ip_id";
 const DEVICE_ID_KEY = "geology_author_id";
 const SKIP_STUDENT_ID_PROMPT_KEY = "geology_skip_student_id_prompt";
 const STUDENT_ID_MAX_DEVICES = 3;
+const COUCH_USER_KEY = "geology_couch_user";
+const COUCH_PASS_KEY = "geology_couch_password";
 
 export function getStudentId() {
   const id = localStorage.getItem(STUDENT_ID_KEY);
@@ -76,9 +78,111 @@ const getCouchDBUrl = () => {
   return `${protocol}//${hostname}${port ? `:${port}` : ''}/couchdb/geology-data`;
 };
 
-export const remoteDB = new PouchDB(getCouchDBUrl(), {
-  skip_setup: true,
-});
+/** CouchDB credentials from this tab only (not in the JS bundle). */
+export function getStoredCouchAuth() {
+  try {
+    const username = sessionStorage.getItem(COUCH_USER_KEY);
+    const password = sessionStorage.getItem(COUCH_PASS_KEY);
+    if (username && password) {
+      return { username, password };
+    }
+  } catch (e) {
+    /* sessionStorage unavailable */
+  }
+  return null;
+}
+
+export function isCouchSessionConfigured() {
+  return !!getStoredCouchAuth();
+}
+
+function clearCouchSessionStorage() {
+  try {
+    sessionStorage.removeItem(COUCH_USER_KEY);
+    sessionStorage.removeItem(COUCH_PASS_KEY);
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+function couchBasicAuthHeader() {
+  const auth = getStoredCouchAuth();
+  if (!auth) return null;
+  return "Basic " + btoa(`${auth.username}:${auth.password}`);
+}
+
+function makeRemoteDB() {
+  const auth = getStoredCouchAuth();
+  return new PouchDB(getCouchDBUrl(), {
+    skip_setup: true,
+    ...(auth ? { auth } : {}),
+  });
+}
+
+// Reassigned after login/logout so importers see the current remote (live binding).
+export let remoteDB = makeRemoteDB();
+
+// Sync handler — declared before rebuildRemoteDB references it
+let syncHandler = null;
+let isConnectedToCouchDB = false;
+
+export function rebuildRemoteDB() {
+  if (syncHandler) {
+    try {
+      syncHandler.cancel();
+    } catch (e) {
+      /* ignore */
+    }
+    syncHandler = null;
+  }
+  remoteDB = makeRemoteDB();
+}
+
+/**
+ * Validate credentials, store in sessionStorage, rebuild remote, run init + sync.
+ */
+export async function connectCouchDB(username, password) {
+  const trimmedU = (username || "").trim();
+  if (!trimmedU || !password) {
+    return { ok: false, error: "Enter username and password." };
+  }
+
+  const testDb = new PouchDB(getCouchDBUrl(), {
+    skip_setup: true,
+    auth: { username: trimmedU, password },
+  });
+
+  try {
+    await testDb.info();
+  } catch (e) {
+    if (e && e.status === 401) {
+      return { ok: false, error: "Invalid username or password." };
+    }
+    return {
+      ok: false,
+      error: (e && e.message) || "Could not reach the server. Check your connection.",
+    };
+  }
+
+  try {
+    sessionStorage.setItem(COUCH_USER_KEY, trimmedU);
+    sessionStorage.setItem(COUCH_PASS_KEY, password);
+  } catch (err) {
+    return { ok: false, error: "This browser blocked saving the session. Try another browser." };
+  }
+
+  rebuildRemoteDB();
+  await initDatabase();
+  if (!getStudentId()) {
+    await initIpFallback();
+  }
+  setTimeout(() => {
+    if (isConnectedToCouchDB && navigator.onLine && syncHandler && syncHandler.state === "active") {
+      updateSyncStatus("synced");
+    }
+  }, 3000);
+  return { ok: true };
+}
 
 function normalizeStudentId(input) {
   return (input || "").trim().slice(0, STUDENT_ID_CONFIG.maxLength);
@@ -180,10 +284,6 @@ export async function registerAndSetStudentId(studentIdInput) {
   return { ok: false, error: "Failed to register Student ID. Please try again." };
 }
 
-// Sync handler
-let syncHandler = null;
-let isConnectedToCouchDB = false;
-
 // Check actual connectivity to CouchDB
 const checkCouchDBConnection = async () => {
   try {
@@ -198,6 +298,11 @@ const checkCouchDBConnection = async () => {
 
 // Initialize database and start sync
 export const initDatabase = async () => {
+  if (!getStoredCouchAuth()) {
+    isConnectedToCouchDB = false;
+    return;
+  }
+
   try {
     // Check if remote database exists
     await remoteDB.info();
@@ -224,9 +329,15 @@ export const initDatabase = async () => {
           byAuthor: "function(doc, req) { if (!req.query.authorId) return false; return doc.authorId === req.query.authorId; }"
         }
       };
+      const authHeaders = () => {
+        const h = { Accept: "application/json" };
+        const a = couchBasicAuthHeader();
+        if (a) h.Authorization = a;
+        return h;
+      };
       const res = await fetch(baseUrl + "/_design/filters", {
         method: "GET",
-        credentials: "include"
+        headers: authHeaders(),
       });
       if (res.ok) {
         const existing = await res.json();
@@ -234,9 +345,8 @@ export const initDatabase = async () => {
       }
       await fetch(baseUrl + "/_design/filters", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify(designDoc),
-        credentials: "include"
       });
     } catch (e) {
       console.warn("Could not ensure filter design doc:", e);
@@ -248,6 +358,11 @@ export const initDatabase = async () => {
 
 // Start bidirectional sync
 export const startSync = () => {
+  if (!getStoredCouchAuth()) {
+    updateSyncStatus("offline");
+    return null;
+  }
+
   // Cancel existing sync if any
   if (syncHandler) {
     syncHandler.cancel();
@@ -335,6 +450,28 @@ const updateSyncStatus = (status) => {
   syncStatusCallbacks.forEach(cb => cb(status));
 };
 
+/** Clear server session and stop syncing (user must connect again). */
+export function disconnectCouchSession() {
+  clearCouchSessionStorage();
+  rebuildRemoteDB();
+  isConnectedToCouchDB = false;
+  updateSyncStatus("offline");
+}
+
+/** Resume after page reload when sessionStorage still has credentials. */
+export async function bootstrapIfSessionPresent() {
+  if (!isCouchSessionConfigured()) return;
+  await initDatabase();
+  if (!getStudentId()) {
+    await initIpFallback();
+  }
+  setTimeout(() => {
+    if (isConnectedToCouchDB && navigator.onLine && syncHandler && syncHandler.state === "active") {
+      updateSyncStatus("synced");
+    }
+  }, 3000);
+}
+
 // Check online/offline status
 export const checkOnlineStatus = () => {
   return navigator.onLine && isConnectedToCouchDB;
@@ -383,17 +520,4 @@ export const setupOnlineOfflineListeners = () => {
   };
 };
 
-// Initialize everything
-initDatabase().then(() => {
-  if (!getStudentId()) {
-    initIpFallback();
-  }
-  setTimeout(() => {
-    if (isConnectedToCouchDB && navigator.onLine) {
-      if (syncHandler && syncHandler.state === 'active') {
-        updateSyncStatus("synced");
-      }
-    }
-  }, 3000);
-});
 setupOnlineOfflineListeners();

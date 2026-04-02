@@ -8,15 +8,15 @@ Simple React-based field data collection UI backed by CouchDB, fully containeriz
 
 - **frontend (Nginx + React)**  
   - Serves the React app at `/`.  
-  - **`/couchdb/…`** — proxies to CouchDB. For most paths, nginx injects **`Authorization: Basic …`** using **`COUCHDB_APP_B64`** (must match **`COUCHDB_USER`:`COUCHDB_PASSWORD`**).  
-  - **`/couchdb/_utils/…`** — Fauxton (CouchDB admin UI); nginx does **not** inject credentials so the browser can prompt for the CouchDB username and password.  
+  - **`/couchdb/…`** — proxies to CouchDB **without** adding credentials. Users sign in on the **“Connect to server”** page (`/sync-login`); username and password are kept in **`sessionStorage`** for that browser tab only (not embedded in the JS bundle). PouchDB then sends **`Authorization: Basic …`** like localhost Fauxton. Raw **`curl`** to **`/couchdb/`** without auth gets **401**.  
+  - **`/couchdb/_utils/…`** — **blocked** at nginx (**403**). Use **`127.0.0.1:5984`** on the host or an **SSH tunnel** for Fauxton (see **`docker-compose`**).  
   - **`server_name`** defaults to **`fielddb.roualdes.us`**; override with **`NGINX_SERVER_NAME`** in **`.env`** (e.g. `localhost` for local testing).
 
 - **couchdb**  
   - On startup, creates the **`geology-data`** database if it does not exist (using **`COUCHDB_USER`** / **`COUCHDB_PASSWORD`**).  
   - CouchDB’s HTTP port **5984** is bound to **`127.0.0.1`** on the host so it is not exposed to the public internet; access is normally through nginx at **`/couchdb/`**.
 
-All services are defined in **`docker-compose.yml`**. Copy **`.env.example`** to **`.env`** to set passwords, domain name, and port. If you change **`COUCHDB_USER`** or **`COUCHDB_PASSWORD`**, you must set **`COUCHDB_APP_B64`** to the Base64 encoding of `username:password` (one line, no spaces).
+All services are defined in **`docker-compose.yml`**. Copy **`.env.example`** to **`.env`** to set passwords, domain name, and port. Changing **`COUCHDB_USER`** / **`COUCHDB_PASSWORD`** only affects **CouchDB** and who can log in on **Connect to server** — you do **not** need to rebuild the React app for that.
 
 ---
 
@@ -41,7 +41,7 @@ docker compose up --build
 By default the app listens on **port 80** on the host (`FRONTEND_PORT=80` in `.env`). If port 80 is already in use, set e.g. `FRONTEND_PORT=8080` in `.env` and open `http://localhost:8080/`.
 
 - **Web app:** `http://localhost/` (or `http://localhost:FRONTEND_PORT/`)  
-- **Fauxton (optional):** `http://localhost/couchdb/_utils/` — use the same CouchDB username/password as in `.env` (defaults: `app` / `app`). For local dev you may set `NGINX_SERVER_NAME=localhost` in `.env` so the server name matches.
+- **Fauxton (optional):** not available at **`/couchdb/_utils/`** (nginx returns **403**). Use **`http://127.0.0.1:5984/_utils/`** on the host (CouchDB is bound to localhost in **`docker-compose`**) and log in with **`COUCHDB_USER`** / **`COUCHDB_PASSWORD`**. For local dev you may set `NGINX_SERVER_NAME=localhost` in `.env` so the server name matches.
 
 Background mode:
 
@@ -118,8 +118,7 @@ Edit at least:
 
 | Variable | Meaning |
 |----------|--------|
-| `COUCHDB_USER` / `COUCHDB_PASSWORD` | CouchDB admin user (change defaults before real production use). |
-| `COUCHDB_APP_B64` | Base64 of `COUCHDB_USER:COUCHDB_PASSWORD` — must stay in sync. Example for `app:app`: `YXBwOmFwcA==`. To generate: `echo -n 'myuser:mypassword' \| base64` |
+| `COUCHDB_USER` / `COUCHDB_PASSWORD` | CouchDB account (change defaults before real production use). Users type these on **Connect to server** in the app — they are **not** baked into the frontend bundle. |
 | `NGINX_SERVER_NAME` | Your **domain name** (e.g. `fielddb.example.edu`) or `localhost` for IP-only testing. |
 | `FRONTEND_PORT` | Host port mapped to the web server (default **80**). Use **8080** if 80 is taken. |
 | `PUBLIC_URL` | URL path prefix for the React app. Use **`/`** if the app is at the root of the domain (recommended for Docker). |
@@ -186,7 +185,7 @@ docker compose logs -f
 In a browser (replace `YOUR_IP` or use your domain):
 
 - **App:** `http://YOUR_PUBLIC_IP/` or `http://your.domain/`  
-- **Fauxton:** `http://YOUR_PUBLIC_IP/couchdb/_utils/` — log in with CouchDB credentials from `.env`.
+- **Fauxton:** not on the public **`/couchdb/_utils/`** URL (**403**). SSH to the server and open **`http://127.0.0.1:5984/_utils/`** (or tunnel port **5984**).
 
 If you used `FRONTEND_PORT=8080`, use `http://YOUR_PUBLIC_IP:8080/` instead.
 
@@ -254,6 +253,6 @@ If port **80** is in use, set `FRONTEND_PORT=8080` in `.env` and open the matchi
 
 ## Security notes (before wide production use)
 
-- Change default **`COUCHDB_USER`** / **`COUCHDB_PASSWORD`** and matching **`COUCHDB_APP_B64`**.  
-- Prefer **HTTPS** and restrict who can SSH into the VM.  
-- Anyone who knows the CouchDB credentials can use Fauxton or the API; treat credentials as sensitive.
+- Change default **`COUCHDB_USER`** / **`COUCHDB_PASSWORD`** on the server; teach students the new values (they enter them at **Connect to server**).  
+- Prefer **HTTPS** on the public URL. Restrict who can SSH into the VM.  
+- Anyone who knows the CouchDB password can sync from the app; **`sessionStorage`** only hides it from the static download, not from someone watching over a shoulder or with the unlocked device.

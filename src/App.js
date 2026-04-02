@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation, Link } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, Link, Navigate, useNavigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -11,13 +11,21 @@ import GrainForm from "./GrainForm";
 import FlowForm from "./FlowForm";
 import SyncStatus from "./components/SyncStatus";
 import { isAdminLoggedIn } from "./utils/auth";
-import { getStudentId, registerAndSetStudentId, STUDENT_ID_CONFIG } from "./utils/database";
+import {
+  getStudentId,
+  registerAndSetStudentId,
+  STUDENT_ID_CONFIG,
+  bootstrapIfSessionPresent,
+  isCouchSessionConfigured,
+  disconnectCouchSession,
+} from "./utils/database";
+import CouchLogin from "./pages/CouchLogin";
 import { getRouterBasename } from "./utils/publicUrl";
 
 function Navigation() {
   const location = useLocation();
   const path = (location.pathname || "").toLowerCase();
-  const isAuthPage = path === "/login" || path === "/signup";
+  const isAuthPage = path === "/login" || path === "/signup" || path === "/sync-login";
   const isAdminPage = path === "/admin";
   const isMyDataPage = path === "/my-data" || path.endsWith("/my-data") || path.includes("my-data");
   const isStudentIdPage = path === "/student-id" || path.endsWith("/student-id") || path.includes("student-id");
@@ -115,9 +123,24 @@ function App() {
 
   return (
     <Router basename={basename}>
-      <AppContent />
+      <Routes>
+        <Route path="/sync-login" element={<CouchLogin />} />
+        <Route path="*" element={<MainShell />} />
+      </Routes>
     </Router>
   );
+}
+
+function MainShell() {
+  React.useEffect(() => {
+    bootstrapIfSessionPresent();
+  }, []);
+
+  if (!isCouchSessionConfigured()) {
+    return <Navigate to="/sync-login" replace />;
+  }
+
+  return <AppContent />;
 }
 
 function StudentIdPrompt({ onDismiss }) {
@@ -168,6 +191,7 @@ function StudentIdPrompt({ onDismiss }) {
 }
 
 function AppContent() {
+  const navigate = useNavigate();
   const location = useLocation();
   const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
   const isGrainOrFlow = location.pathname === "/grain" || location.pathname === "/flow" ||
@@ -222,7 +246,26 @@ function AppContent() {
           <Route path="/flow" element={<FlowForm />} />
         </Routes>
       </main>
-      
+
+      <footer
+        style={deployFooterStyle}
+        title="Docker: set REACT_APP_BUILD_REF in .env or compose build args to stamp each deploy"
+      >
+        <span style={{ opacity: 0.85 }}>
+          Build: {process.env.REACT_APP_BUILD_REF || "dev"}
+        </span>
+        <span style={{ marginLeft: "1rem", opacity: 0.85 }}>·</span>
+        <button
+          type="button"
+          onClick={() => {
+            disconnectCouchSession();
+            navigate("/sync-login", { replace: true });
+          }}
+          style={disconnectBtnStyle}
+        >
+          Disconnect server
+        </button>
+      </footer>
     </div>
   );
 }
@@ -362,6 +405,24 @@ const mainStyle = {
   minHeight: "calc(100vh - 300px)",
 };
 
+const deployFooterStyle = {
+  textAlign: "center",
+  padding: "0.75rem 1rem 1.25rem",
+  fontSize: "0.7rem",
+  color: "#9ca3af",
+  borderTop: "1px solid #f3f4f6",
+};
+
+const disconnectBtnStyle = {
+  marginLeft: "0.75rem",
+  padding: "0.2rem 0.5rem",
+  fontSize: "0.7rem",
+  color: "#6b7280",
+  background: "transparent",
+  border: "1px solid #e5e7eb",
+  borderRadius: "4px",
+  cursor: "pointer",
+};
 
 // Add hover effect via inline style on component
 

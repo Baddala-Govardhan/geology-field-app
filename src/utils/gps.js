@@ -122,8 +122,10 @@ export const getGPSLocation = () => {
 };
 
 export const formatGPSString = (latitude, longitude) => {
-  if (latitude && longitude) {
-    return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+  const lat = typeof latitude === "number" ? latitude : parseFloat(String(latitude));
+  const lon = typeof longitude === "number" ? longitude : parseFloat(String(longitude));
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
   }
   return "";
 };

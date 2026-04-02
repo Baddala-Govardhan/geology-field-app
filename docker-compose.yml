@@ -29,12 +29,11 @@ services:
       dockerfile: Dockerfile
       args:
         PUBLIC_URL: ${PUBLIC_URL:-/}
+        REACT_APP_BUILD_REF: ${REACT_APP_BUILD_REF:-}
     container_name: geology_frontend
     environment:
       # Production default — override in .env for staging (e.g. localhost) if needed
       NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-fielddb.roualdes.us}
-      # Base64 of COUCHDB_USER:COUCHDB_PASSWORD (default app:app) — must match CouchDB
-      COUCHDB_APP_B64: ${COUCHDB_APP_B64:-YXBwOmFwcA==}
     ports:
       - "${FRONTEND_PORT:-80}:80"
     depends_on:
