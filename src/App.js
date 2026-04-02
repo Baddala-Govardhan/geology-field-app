@@ -16,7 +16,7 @@ import {
   registerAndSetStudentId,
   STUDENT_ID_CONFIG,
   bootstrapIfSessionPresent,
-  isCouchSessionConfigured,
+  verifyCouchDbAccess,
   disconnectCouchSession,
 } from "./utils/database";
 import CouchLogin from "./pages/CouchLogin";
@@ -25,7 +25,7 @@ import { getRouterBasename } from "./utils/publicUrl";
 function Navigation() {
   const location = useLocation();
   const path = (location.pathname || "").toLowerCase();
-  const isAuthPage = path === "/login" || path === "/signup" || path === "/sync-login";
+  const isAuthPage = path === "/login" || path === "/signup" || path === "/couchdb-login";
   const isAdminPage = path === "/admin";
   const isMyDataPage = path === "/my-data" || path.endsWith("/my-data") || path.includes("my-data");
   const isStudentIdPage = path === "/student-id" || path.endsWith("/student-id") || path.includes("student-id");
@@ -124,7 +124,7 @@ function App() {
   return (
     <Router basename={basename}>
       <Routes>
-        <Route path="/sync-login" element={<CouchLogin />} />
+        <Route path="/couchdb-login" element={<CouchLogin />} />
         <Route path="*" element={<MainShell />} />
       </Routes>
     </Router>
@@ -132,12 +132,31 @@ function App() {
 }
 
 function MainShell() {
+  const [couchReady, setCouchReady] = React.useState(null);
+
   React.useEffect(() => {
-    bootstrapIfSessionPresent();
+    let cancelled = false;
+    (async () => {
+      const ok = await verifyCouchDbAccess();
+      if (cancelled) return;
+      setCouchReady(ok);
+      if (ok) await bootstrapIfSessionPresent();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (!isCouchSessionConfigured()) {
-    return <Navigate to="/sync-login" replace />;
+  if (couchReady === null) {
+    return (
+      <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280", fontSize: "0.9375rem" }}>
+        Checking CouchDB session…
+      </div>
+    );
+  }
+
+  if (!couchReady) {
+    return <Navigate to="/couchdb-login" replace />;
   }
 
   return <AppContent />;
@@ -257,13 +276,13 @@ function AppContent() {
         <span style={{ marginLeft: "1rem", opacity: 0.85 }}>·</span>
         <button
           type="button"
-          onClick={() => {
-            disconnectCouchSession();
-            navigate("/sync-login", { replace: true });
+          onClick={async () => {
+            await disconnectCouchSession();
+            navigate("/couchdb-login", { replace: true });
           }}
           style={disconnectBtnStyle}
         >
-          Disconnect server
+          Log out of CouchDB
         </button>
       </footer>
     </div>
